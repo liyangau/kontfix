@@ -20,4 +20,4 @@ Kontfix is an opinionated framework for managing Kong Control Planes on Konnect 
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [GPL-3.0 license](LICENSE).
