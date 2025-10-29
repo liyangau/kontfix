@@ -46,7 +46,7 @@
                   us = {
                     dev = {
                       description = "dev control plane";
-                      create_certificates = true;
+                      create_certificate = true;
                       upload_ca_certificate = true;
                       system_account = {
                         enable = true;
@@ -61,7 +61,7 @@
                   au = {
                     dev = {
                       description = "dev control plane";
-                      create_certificates = true;
+                      create_certificate = true;
                       upload_ca_certificate = true;
                       system_account = {
                         enable = true;

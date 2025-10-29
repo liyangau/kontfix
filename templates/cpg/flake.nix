@@ -50,7 +50,6 @@
                         enable = true;
                         generate_token = true;
                       };
-
                       labels = {
                         environment = "dev";
                         team = "platform";
@@ -70,8 +69,8 @@
                     dev = {
                       name = "dev-group";
                       description = "dev control plane";
-                      create_certificate = false;
-                      upload_ca_certificate = false;
+                      create_certificate = true;
+                      upload_ca_certificate = true;
                       cluster_type = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
                       members = [
                         "dev-tenant"
