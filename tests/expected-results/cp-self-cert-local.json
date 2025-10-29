@@ -1,0 +1,59 @@
+{
+  "providers": [
+    {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    }
+  ],
+  "control_planes": [
+    {
+      "resource_name": "au-test",
+      "name": "test",
+      "provider": "konnect.au",
+      "auth_type": "pinned_client_certs"
+    }
+  ],
+  "resources": [
+    {
+      "resource_type": "local_file",
+      "resource_name": "au-test_pinned_cert",
+      "filename": "${path.module}/certs/au-test-cert.pem"
+    },
+    {
+      "resource_type": "local_file",
+      "resource_name": "au-test_pinned_key",
+      "filename": "${path.module}/certs/au-test-key.pem"
+    },
+    {
+      "resource_type": "local_file",
+      "resource_name": "au-test_pinned_config",
+      "filename": "${path.module}/certs/au-test-cluster-config.json"
+    },
+    {
+      "resource_type": "tls_private_key",
+      "resource_name": "au-test",
+      "algorithm": "RSA",
+      "rsa_bits": 2048
+    },
+    {
+      "resource_type": "tls_self_signed_cert",
+      "resource_name": "au-test",
+        "subject": [
+          {
+            "common_name": "konnect-au-test"
+          }
+        ],
+      "depends_on": [
+        "tls_private_key.au-test"
+      ],
+      "validity_period_hours": 2160
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token"
+    }
+  ]
+}

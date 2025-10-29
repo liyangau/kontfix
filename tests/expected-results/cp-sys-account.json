@@ -1,0 +1,44 @@
+{
+  "providers": [
+    {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    },
+    {
+      "provider": "konnect",
+      "alias": "id_admin",
+      "personal_access_token": "${var.id_admin_token}",
+      "server_url": "https://global.api.konghq.com"      
+    }
+  ],
+  "control_planes": [
+    {
+      "resource_name": "au-test",
+      "name": "test",
+      "provider": "konnect.au",
+      "auth_type": "pinned_client_certs"
+    }
+  ],
+  "resources": [
+    {
+      "resource_type": "konnect_system_account",
+      "resource_name": "au-test",
+      "name": "au-test-system-account",
+      "provider": "konnect.id_admin"
+    },
+    {
+      "resource_type": "konnect_system_account_role",
+      "resource_name": "au-test"
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token"
+    },
+    {
+      "variable_name": "id_admin_token"
+    }
+  ]
+}

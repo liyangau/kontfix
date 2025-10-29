@@ -1,0 +1,71 @@
+{
+  "providers": [
+    {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    },
+    {
+      "provider": "aws",
+      "alias": "au-test",
+      "profile": "${var.aws_profile}",
+      "region": "${var.aws_region}"
+    }
+  ],
+  "control_planes": [
+    {
+      "resource_name": "au-test",
+      "name": "test",
+      "provider": "konnect.au",
+      "auth_type": "pinned_client_certs"
+    }
+  ],
+  "resources": [
+    {
+      "resource_type": "aws_secretsmanager_secret",
+      "resource_name": "au-test_pinned_cluster_config",
+      "tags": {
+        "owner": "fomm"
+      },
+      "name": "konnect/au-test/cluster-config",
+      "provider": "aws.au-test"
+    },
+    {
+      "resource_type": "aws_secretsmanager_secret_version",
+      "resource_name": "au-test_pinned_cluster_version",
+      "provider": "aws.au-test",
+      "secret_id": "${aws_secretsmanager_secret.au-test_pinned_cluster_config.id}"
+    },
+    {
+      "resource_type": "tls_private_key",
+      "resource_name": "au-test",
+      "algorithm": "RSA",
+      "rsa_bits": 2048
+    },
+    {
+      "resource_type": "tls_self_signed_cert",
+      "resource_name": "au-test",
+      "subject": [
+        {
+          "common_name": "konnect-au-test"
+        }
+      ],
+      "depends_on": [
+        "tls_private_key.au-test"
+      ],
+      "validity_period_hours": 2160
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token"
+    },
+    {
+      "variable_name": "aws_region"
+    },
+    {
+      "variable_name": "aws_profile"
+    }
+  ]
+}

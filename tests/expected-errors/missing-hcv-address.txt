@@ -1,0 +1,1 @@
+Control plane 'au-test' uses HCV PKI backend but defaults.pki.hcv.address is not configured. Please set kontfix.defaults.pki.hcv.address

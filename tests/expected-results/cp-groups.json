@@ -1,0 +1,83 @@
+{
+  "providers": [
+    {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    },
+    {
+      "provider": "konnect",
+      "alias": "id_admin",
+      "personal_access_token": "${var.id_admin_token}",
+      "server_url": "https://global.api.konghq.com"
+    }
+  ],
+  "control_planes": [
+    {
+      "resource_name": "au-test",
+      "name": "test",
+      "auth_type": "pinned_client_certs",
+      "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE"
+    },
+    {
+      "resource_name": "au-demo",
+      "name": "demo",
+      "auth_type": "pinned_client_certs",
+      "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE"
+    },
+    {
+      "resource_name": "au-dev-cpg",
+      "name": "dev-cpg",
+      "provider": "konnect.au",
+      "auth_type": "pinned_client_certs",
+      "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+    }
+  ],
+  "resources": [
+    {
+      "resource_type": "konnect_gateway_control_plane_membership",
+      "resource_name": "au-dev-cpg",
+      "id": "${konnect_gateway_control_plane.au-dev-cpg.id}",
+      "members": [
+        {
+          "id": "${konnect_gateway_control_plane.au-test.id}"
+        },
+        {
+          "id": "${konnect_gateway_control_plane.au-demo.id}"
+        }
+      ],
+      "provider": "konnect.au"
+    },
+    {
+      "resource_type": "konnect_system_account",
+      "resource_name": "au-test",
+      "name": "au-test-system-account",
+      "provider": "konnect.id_admin"
+    },
+    {
+      "resource_type": "konnect_system_account",
+      "resource_name": "au-demo",
+      "name": "au-demo-system-account",
+      "provider": "konnect.id_admin"
+    },
+    {
+      "resource_type": "konnect_system_account_access_token",
+      "resource_name": "au-test"
+    },
+    {
+      "resource_type": "konnect_system_account_access_token",
+      "resource_name": "au-demo"
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token",
+      "type": "string"
+    },
+    {
+      "variable_name": "id_admin_token",
+      "type": "string"
+    }
+  ]
+}

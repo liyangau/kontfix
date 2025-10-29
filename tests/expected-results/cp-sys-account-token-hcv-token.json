@@ -1,0 +1,54 @@
+{
+  "providers": [
+    {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    },
+    {
+      "provider": "konnect",
+      "alias": "id_admin",
+      "personal_access_token": "${var.id_admin_token}",
+      "server_url": "https://global.api.konghq.com"
+    },
+    {
+      "provider": "vault",
+      "alias": "storage",
+      "token": "${var.vault_token}"
+    }
+  ],
+  "control_planes": [
+    {
+      "resource_name": "au-test",
+      "name": "test",
+      "provider": "konnect.au",
+      "auth_type": "pinned_client_certs"
+    }
+  ],
+  "resources": [
+    {
+      "resource_type": "vault_policy",
+      "resource_name": "konnect_au-test_readonly",
+      "policy": "${data.vault_policy_document.au-test_readonly.hcl}"
+    },
+    {
+      "resource_type": "vault_kv_secret_v2",
+      "resource_name": "au-test_system_token",
+      "name": "au/test/system-token",
+      "provider": "vault.storage"
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token"
+    },
+    {
+      "variable_name": "id_admin_token"
+    },
+    {
+      "variable_name": "vault_token",
+      "type": "string"
+    }
+  ]
+}

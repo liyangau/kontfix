@@ -9,14 +9,17 @@ Kontfix is an opinionated framework for managing Kong Control Planes on Konnect 
 - **Declarative Configuration**: Define Kong Control Plane setups declaratively with minimal configuration.
 - **Reproducibility**: Achieve consistent configurations across multiple region and environments.
 - **Flexibility**: Support different configurations for each control planes while providing sensible defaults.
-- **Integration**: Seamlessly integrate with CI/CD pipelines for Terraform workflows.
+- **Integration**: Seamlessly integrate with CI/CD pipelines for Terraform workflows. 
 
 ## Getting Started
 
-### Prerequisites
+To get start, please refer to [How to Use Kontfix to Manage Kong Konnect Control Planes](https://tech.aufomm.com/how-to-use-kontfix-to-manage-kong-konnect-control-planes/)
 
-- [Nix](https://nixos.org/download.html) installed on your system.
-- Basic understanding of Nix and Kong Control Planes.
+## WIP
+
+- [ ] Kontfix Manual
+- [ ] Example for CI/CD integration
+- [ ] More tests
 
 ## License
 
