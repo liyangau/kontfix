@@ -18,7 +18,7 @@ To get start, please refer to [How to Use Kontfix to Manage Kong Konnect Control
 ## WIP
 
 - [ ] Kontfix Manual
-- [ ] Example for CI/CD integration
+- [x] Example for CI/CD integration. You can find an example [here](https://github.com/aufomm/kontfix-examples).
 - [ ] More tests
 
 ## License
