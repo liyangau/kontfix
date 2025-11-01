@@ -3,7 +3,7 @@
     nixpkgs-terraform.url = "github:stackbuilders/nixpkgs-terraform";
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     systems.url = "github:nix-systems/default";
-    kontfix.url = "github:liyangau/kontfix";
+    kontfix.url = "path:../";
   };
   outputs =
     {

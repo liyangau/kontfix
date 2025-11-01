@@ -28,18 +28,14 @@
         "terranix": "terranix"
       },
       "locked": {
-        "lastModified": 1761974754,
-        "narHash": "sha256-7Uo7VcHB/ALnJxwg7hhRPDkWYJ2H56X8abABwUGWyVY=",
-        "owner": "liyangau",
-        "repo": "kontfix",
-        "rev": "a98c9b681bc7ea4e590ccb9d19731776909e4e93",
-        "type": "github"
+        "path": "../",
+        "type": "path"
       },
       "original": {
-        "owner": "liyangau",
-        "repo": "kontfix",
-        "type": "github"
-      }
+        "path": "../",
+        "type": "path"
+      },
+      "parent": []
     },
     "nixpkgs": {
       "locked": {
