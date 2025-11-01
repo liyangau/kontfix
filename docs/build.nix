@@ -127,15 +127,15 @@ in
         cat <<EOF > docs/index.md
         # Kontfix Documentation
 
+        
+        Welcome to the Kontfix documentation. Kontfix is an opinionated Nix-based framework for managing Kong Konnect control planes and related resources include system accounts, client certificates via Terraform. 
+        
         ![Kontfix](kontfix.png)
-
-        Welcome to the Kontfix documentation. Kontfix is a Nix-based framework for managing Kong Konnect control planes and system accounts.
-
         ## Sections
 
-        - **[Defaults](defaults-options.md)** - Default configuration options for storage, PKI, certificates, and system account tokens
+        - **[Defaults](defaults-options.md)** - Default configuration options for all resources
         - **[Control Planes](controlplanes-options.md)** - Individual control plane configuration options
-        - **[Groups](groups-options.md)** - System account group configuration options
+        - **[Groups](groups-options.md)** - Logical groups (System accounts) configuration options
 
         EOF
 
@@ -150,17 +150,17 @@ in
         ## Configuration Areas
 
         - **Storage** - AWS and HashiCorp Vault storage configurations
-        - **PKI** - PKI backend for generating client certificates for CP-DP communications. Curently supports HashiCorp Vault only.
-        - **Control Planes** - Default settings for individual control planes
-        - **Certificates** - Certificate validity and renewal settings
-        - **System Account Tokens** - Token validity and renewal settings
+        - **PKI** - PKI backend for generating client certificates for CP-DP communications. Currently HashiCorp Vault is the only supported backend.
+        - **Control Planes** - Default settings for all control plane.
+        - **Certificates** - Certificates validity and renewal settings
+        - **System Account Tokens** - System account access tokens validity and renewal settings
 
         EOF
 
         cat <<EOF > docs/controlplanes.md
         # Control Planes Configuration
 
-        This section contains configuration options for individual Kong Konnect control planes.
+        This section contains configuration options for individual Kong Konnect control plane.
 
         [📖 View all control planes options](controlplanes-options.md)
 
@@ -170,7 +170,7 @@ in
         - Certificate management
         - System account creation
         - Storage backend selection
-        - AWS provider configuration
+        - AWS configuration for storage
         - Custom plugins support
 
         EOF
@@ -178,7 +178,7 @@ in
         cat <<EOF > docs/groups.md
         # Groups Configuration
 
-        This section contains configuration options for system account groups, which allow you to manage multiple control planes together.
+        This section contains configuration options for logical groups which are system accounts. It allows you to group multiple control planes and manage their configurations using the group system account access token.
 
         [📖 View all groups options](groups-options.md)
 
@@ -187,7 +187,7 @@ in
         - Group member management
         - Token generation and storage
         - Multi-region support
-        - AWS integration for group storage
+        - AWS configuration for storage
 
         EOF
 
@@ -200,19 +200,26 @@ in
 
           theme:
             name: material
+            features:
+              - search.suggest
+            font:
+              text: Fira Sans
+              code: JetBrains Mono
             palette:
-            - media: "(prefers-color-scheme: light)"
-              scheme: default
-              primary: deep purple
-              toggle:
-                icon: material/brightness-7
-                name: Switch to dark mode
-            - media: "(prefers-color-scheme: dark)"
-              scheme: slate
-              primary: blue grey
-              toggle:
-                icon: material/brightness-4
-                name: Switch to light mode
+              - media: "(prefers-color-scheme: light)"
+                scheme: default
+                primary: deep purple
+                accent: teal
+                toggle:
+                  icon: material/brightness-7
+                  name: Switch to dark mode
+              - media: "(prefers-color-scheme: dark)"
+                scheme: slate
+                primary: blue grey
+                accent: light blue
+                toggle:
+                  icon: material/brightness-4
+                  name: Switch to light mode
 
             features:
             - navigation.footer
