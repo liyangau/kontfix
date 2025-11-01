@@ -22,8 +22,8 @@ in
     # AWS Secrets Manager Storage Resources
     resource.aws_secretsmanager_secret = mkMerge [
       # PKI certificate cluster configurations in AWS
-      (mapAttrs' (nameValuePair "${name}_pki_cluster_config" {
-        provider = "aws.${cp.region}-${name}";
+      (mapAttrs' (name: cp: nameValuePair "${name}_pki_cluster_config" {
+        provider = "aws.${cp.region}-${cp.originalName}";
         name = "${storageDefaults.aws.cp_prefix}/${name}/cluster-config";
         recovery_window_in_days = 0;
         tags = cp.aws.tags;
