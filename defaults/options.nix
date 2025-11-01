@@ -81,12 +81,21 @@ with lib;
       };
       controlPlanes = {
         auth_type = mkOption {
-          type = types.str;
+          type = types.enum [
+            "pinned_client_certs"
+            "pki_client_certs"
+          ];
           default = "pinned_client_certs";
           description = "Default authentication type for control planes";
         };
         storage_backend = mkOption {
-          type = types.listOf types.str;
+          type = types.listOf (
+            types.enum [
+              "local"
+              "hcv"
+              "aws"
+            ]
+          );
           default = [ "local" ];
           description = "Default storage backend options for control planes";
         };
@@ -96,9 +105,11 @@ with lib;
           description = "Default labels applied to all control planes";
         };
         pki_backend = mkOption {
-          type = types.str;
+          type = types.enum [
+            "hcv"
+          ];
           default = "hcv";
-          description = "Default pki backend to generate certificate for control planes using pki_client_certs auth type";
+          description = "Default pki backend to generate certificate for control planes using `pki_client_certs` auth type";
         };
       };
       pki_ca_certificate = mkOption {

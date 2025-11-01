@@ -20,19 +20,26 @@ let
       output = mkOption {
         type = types.bool;
         default = false;
-        description = "Whether to output the control plane details";
+        description = "Whether to output the control plane details in terraform output";
       };
 
       cluster_type = mkOption {
-        type = types.str;
+        type = types.enum [
+          "CLUSTER_TYPE_CONTROL_PLANE"
+          "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+          "CLUSTER_TYPE_K8S_INGRESS_CONTROLLER"
+        ];
         default = "CLUSTER_TYPE_CONTROL_PLANE";
         description = "Type of the control plane";
       };
 
       auth_type = mkOption {
-        type = types.str;
+        type = types.enum [
+          "pinned_client_certs"
+          "pki_client_certs"
+        ];
         default = cfg.defaults.controlPlanes.auth_type;
-        description = "Authentication type for the control plane";
+        description = "Authentication type for the control plane.";
       };
 
       description = mkOption {
@@ -50,31 +57,33 @@ let
       members = mkOption {
         type = types.listOf types.str;
         default = [ ];
-        description = "List of member control plane names";
+        description = "List of member control plane names, only to be used when cluster_type is CLUSTER_TYPE_CONTROL_PLANE_GROUP";
       };
 
       create_certificate = mkOption {
         type = types.bool;
         default = false;
-        description = "Whether to create and manage certificates";
+        description = "Whether to create client certificate for the control plane. When auth_type is `pinned_client_certs`, this option generates a self-signed certificate. If auth_type is `pki_client_certs`, it use the *pki_backend* to generate the certificate.";
       };
 
       pki_backend = mkOption {
-        type = types.str;
+        type = types.enum [
+          "hcv"
+        ];
         default = cfg.defaults.controlPlanes.pki_backend;
-        description = "Default pki backend to generate certificate for control plane using pki_client_certs auth type";
+        description = "PKI backend to generate certificate for control plane using pki_client_certs auth type";
       };
 
       upload_ca_certificate = mkOption {
         type = types.bool;
         default = false;
-        description = "Whether to upload CA certificate to the control plane";
+        description = "Whether to upload CA certificate to the control plane. When auth_type is `pinned_client_certs`, the self-signed certificate will be uploaded, when auth_type is `pki_client_certs`, the CA certificate will either by passed in via *ca_certificate* or taken from defaults.pki_ca_certificate and uploaded to the control plane.";
       };
 
       ca_certificate = mkOption {
         type = types.nullOr types.str;
         default = null;
-        description = "Custom CA certificate for this control plane (overrides defaults.pki_ca_certificate)";
+        description = "Custom CA certificate for this control plane (overrides defaults.pki_ca_certificate). This is useful when you want to manage certificate lifecycle outside of Kontfix";
       };
 
       system_account = mkOption {
@@ -99,13 +108,19 @@ let
       custom_plugins = mkOption {
         type = types.listOf types.str;
         default = [ ];
-        description = "List of custom plugins to enable";
+        description = "List of custom plugin schemas to uploaded to the control plane";
       };
 
       storage_backend = mkOption {
-        type = types.listOf types.str;
+        type = types.listOf (
+          types.enum [
+            "local"
+            "hcv"
+            "aws"
+          ]
+        );
         default = cfg.defaults.controlPlanes.storage_backend;
-        description = "Storage backend options";
+        description = "Storage backend options. Defaults to the global defaults.";
       };
 
       aws = mkOption {
@@ -114,22 +129,22 @@ let
             enable = mkOption {
               type = types.bool;
               default = false;
-              description = "Whether to enable AWS provider (required for AWS resources even when not using AWS storage)";
+              description = "Whether to enable AWS provider. Required for AWS resources even when not using AWS storage.";
             };
             profile = mkOption {
               type = types.str;
               default = "";
-              description = "AWS profile name to use (default: empty string, will use default AWS credentials chain)";
+              description = "AWS profile name to use. If not provided, read from aws_profile variable.";
             };
             region = mkOption {
               type = types.str;
               default = "";
-              description = "AWS region for resources (default: empty string, will use environment or AWS config)";
+              description = "AWS region for resources. If not provided, read from aws_region variable.";
             };
             tags = mkOption {
               type = types.attrsOf types.str;
               default = { };
-              description = "AWS tags to apply when using AWS storage backend";
+              description = "AWS tags added to resources when using AWS storage backend";
             };
           };
         };

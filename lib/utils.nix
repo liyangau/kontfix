@@ -13,10 +13,7 @@ rec {
     pinned = "pinned_client_certs";
   };
 
-  supportedPkiBackend = [
-    "hcv"
-  ];
-
+  
   # Cluster types
   clusterTypes = {
     controlPlane = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
@@ -112,35 +109,35 @@ rec {
 
       awsStoragePkiCertControlPlanes = filterByCertType {
         controlPlanes = awsStorageControlPlanes;
-        certType = "pki_client_certs";
+        certType = authTypes.pki;
       };
 
       awsStoragePinnedCertControlPlanes = filterByCertType {
         controlPlanes = awsStorageControlPlanes;
-        certType = "pinned_client_certs";
+        certType = authTypes.pinned;
       };
       awsStorageSysAccountControlPlanes = filterSystemAccountTokenPlanes awsStorageControlPlanes;
 
       hcvStoragePkiCertControlPlanes = filterByCertType {
         controlPlanes = hcvStorageControlPlanes;
-        certType = "pki_client_certs";
+        certType = authTypes.pki;
       };
 
       hcvStoragePinnedCertControlPlanes = filterByCertType {
         controlPlanes = hcvStorageControlPlanes;
-        certType = "pinned_client_certs";
+        certType = authTypes.pinned;
       };
 
       hcvStorageSysAccountControlPlanes = filterSystemAccountTokenPlanes hcvStorageControlPlanes;
 
       localStoragePkiCertControlPlanes = filterByCertType {
         controlPlanes = localStorageControlPlanes;
-        certType = "pki_client_certs";
+        certType = authTypes.pki;
       };
 
       localStoragePinnedCertControlPlanes = filterByCertType {
         controlPlanes = localStorageControlPlanes;
-        certType = "pinned_client_certs";
+        certType = authTypes.pinned;
       };
 
       localStorageSysAccountControlPlanes = filterSystemAccountTokenPlanes localStorageControlPlanes;
@@ -248,14 +245,9 @@ rec {
 
       # Validation 9: Region must be in allowed list
       regionValid = elem cp.region allowedRegions;
-
-      # Validation 10: PKI control planes with create_certificate = true must have a supported pki_backend
-      usesPkiAuth = cp.auth_type == authTypes.pki;
-      createsCert = cp.create_certificate or false;
-      pkiBackendValid = !usesPkiAuth || !createsCert || (elem cp.pki_backend supportedPkiBackend);
     in
     if !membersTypeValid then
-      throw "Control plane '${name}' has members ${toString cp.members} but cluster_type is not CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+      throw "Control plane '${cp.originalName}' has members ${toString cp.members} but its cluster_type is not ${clusterTypes.controlPlaneGroup}"
     else if !membersDefined then
       throw "Control plane group '${cp.originalName}' references undefined members: ${toString undefinedMembers}"
     else if !membersCertValid then
@@ -267,13 +259,11 @@ rec {
     else if !awsTagsValid then
       throw "Control plane '${cp.originalName}' uses AWS backend but aws.tags is not defined or empty"
     else if !k8sAuthValid then
-      throw "Control plane '${cp.originalName}' with cluster_type 'CLUSTER_TYPE_K8S_INGRESS_CONTROLLER' must have auth_type 'pinned_client_certs' but got '${cp.auth_type}'"
+      throw "Control plane '${cp.originalName}' with cluster_type '${clusterTypes.k8sIngress}' must have auth_type '${authTypes.pinned}' but got '${cp.auth_type}'"
     else if !awsStorageValid then
       throw "Control plane '${cp.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
     else if !regionValid then
       throw "Control plane '${cp.originalName}' has invalid region '${cp.region}'. Allowed regions are: ${concatStringsSep ", " allowedRegions}"
-    else if !pkiBackendValid then
-      throw "Control plane '${cp.originalName}' has unsupported pki_backend '${cp.pki_backend}'. Supported backends: ${concatStringsSep ", " supportedPkiBackend}"
     else
       cp;
 
