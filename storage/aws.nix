@@ -127,11 +127,11 @@ in
       ) awsStorageSysAccountControlPlanes)
 
       # Group system account token versions
-      (mapAttrs'
-        (
-          name: group:
-          nameValuePair "${group.groupName}_group_system_token_version" {
-            provider = "aws.${group.regionName}-group-${group.groupName}";
+      (listToAttrs (
+        map (group: {
+          name = "${group.groupName}_group_system_token_version";
+          value = {
+            provider = "aws.${group.regionName}-group-${group.originalName}";
             secret_id = "\${aws_secretsmanager_secret.${group.groupName}_group_system_token.id}";
             secret_string = "\${jsonencode({
             token = konnect_system_account_access_token.${group.groupName}.token
@@ -139,17 +139,9 @@ in
             created_at = konnect_system_account_access_token.${group.groupName}.created_at
             members = ${builtins.toJSON group.groupConfig.members}
           })}";
-          }
-        )
-        (
-          listToAttrs (
-            map (group: {
-              name = group.groupName;
-              value = group;
-            }) awsStorageGroups
-          )
-        )
-      )
+          };
+        }) awsStorageGroups
+      ))
     ];
   };
 }
