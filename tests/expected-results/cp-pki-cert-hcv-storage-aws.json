@@ -1,0 +1,69 @@
+{
+  "providers": [
+    {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    },
+    {
+      "provider": "aws",
+      "alias": "au-test",
+      "profile": "${var.aws_profile}",
+      "region": "${var.aws_region}"
+    },
+    {
+      "provider": "vault",
+      "address": "https://example.com",
+      "alias": "pki",
+      "token": "${var.vault_pki_token}"
+    }
+  ],
+  "control_planes": [
+    {
+      "resource_name": "au-test",
+      "name": "test",
+      "provider": "konnect.au",
+      "auth_type": "pki_client_certs"
+    }
+  ],
+  "resources": [
+    {
+      "resource_type": "aws_secretsmanager_secret",
+      "resource_name": "au-test_pki_cluster_config",
+      "name": "konnect/au-test/cluster-config",
+      "provider": "aws.au-test"
+    },
+    {
+      "resource_type": "aws_secretsmanager_secret_version",
+      "resource_name": "au-test_pki_cluster_version",
+      "provider": "aws.au-test",
+      "secret_id": "${aws_secretsmanager_secret.au-test_pki_cluster_config.id}"
+    },
+    {
+      "resource_type": "vault_pki_secret_backend_cert",
+      "resource_name": "au-test",
+      "auto_renew": true,
+      "backend": "rsa",
+      "common_name": "konnect-au-test",
+      "min_seconds_remaining": 604800,
+      "name": "client-cert",
+      "provider": "vault.pki",
+      "ttl": "2160h"
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token"
+    },
+    {
+      "variable_name": "aws_region"
+    },
+    {
+      "variable_name": "aws_profile"
+    },
+    {
+      "variable_name": "vault_pki_token"
+    }
+  ]
+}

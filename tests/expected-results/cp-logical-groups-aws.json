@@ -1,0 +1,100 @@
+{
+  "providers": [
+    {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    },
+    {
+      "provider": "konnect",
+      "alias": "id_admin",
+      "personal_access_token": "${var.id_admin_token}",
+      "server_url": "https://global.api.konghq.com"
+    },
+    {
+      "provider": "aws",
+      "alias": "au-group-dev_team",
+      "profile": "${var.aws_profile}",
+      "region": "${var.aws_region}"
+    }
+  ],
+  "control_planes": [
+    {
+      "resource_name": "au-test",
+      "name": "test",
+      "auth_type": "pinned_client_certs",
+      "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE"
+    },
+    {
+      "resource_name": "au-demo",
+      "name": "demo",
+      "auth_type": "pinned_client_certs",
+      "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE"
+    }
+  ],
+  "resources": [
+    {
+      "resource_type": "aws_secretsmanager_secret",
+      "resource_name": "au-dev_team_group_system_token",
+      "name": "konnect/au/groups/dev_team/system-token",
+      "provider": "aws.au-group-dev_team"
+    },
+    {
+      "resource_type": "aws_secretsmanager_secret_version",
+      "resource_name": "au-dev_team_group_system_token_version",
+      "provider": "aws.au-group-dev_team",
+      "secret_id": "${aws_secretsmanager_secret.au-dev_team_group_system_token.id}"
+    },
+    {
+      "resource_type": "konnect_system_account",
+      "resource_name": "au-dev_team",
+      "name": "au-dev_team",
+      "provider": "konnect.id_admin"
+    },
+    {
+      "resource_type": "konnect_system_account_access_token",
+      "resource_name": "au-dev_team",
+      "account_id": "${konnect_system_account.au-dev_team.id}",
+      "provider": "konnect.id_admin"
+    },
+    {
+      "resource_type": "konnect_system_account_role",
+      "resource_name": "au-dev_team-demo-group-role",
+      "account_id": "${konnect_system_account.au-dev_team.id}",
+      "entity_id": "${konnect_gateway_control_plane.au-demo.id}",
+      "entity_region": "au",
+      "entity_type_name": "Control Planes",
+      "provider": "konnect.id_admin",
+      "role_name": "Admin"
+    },
+    {
+      "resource_type": "konnect_system_account_role",
+      "resource_name": "au-dev_team-test-group-role",
+      "account_id": "${konnect_system_account.au-dev_team.id}",
+      "entity_id": "${konnect_gateway_control_plane.au-test.id}",
+      "entity_region": "au",
+      "entity_type_name": "Control Planes",
+      "provider": "konnect.id_admin",
+      "role_name": "Admin"
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token",
+      "type": "string"
+    },
+    {
+      "variable_name": "id_admin_token",
+      "type": "string"
+    },
+    {
+      "variable_name": "aws_region",
+      "type": "string"
+    },
+    {
+      "variable_name": "aws_profile",
+      "type": "string"
+    }
+  ]
+}

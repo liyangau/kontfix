@@ -1,0 +1,227 @@
+{
+  "providers": [
+    {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    },
+    {
+      "provider": "aws",
+      "alias": "au-test-aws",
+      "profile": "${var.aws_profile}",
+      "region": "${var.aws_region}"
+    },
+    {
+      "provider": "aws",
+      "alias": "au-group-dev_team",
+      "profile": "${var.aws_profile}",
+      "region": "${var.aws_region}"
+    },
+    {
+      "provider": "vault",
+      "address": "https://example.com",
+      "alias": "storage",
+      "auth_login": {
+        "parameters": {
+          "role_id": "${var.vault_role_id}",
+          "secret_id": "${var.vault_secret_id}"
+        },
+        "path": "auth/kong-approle/login"
+      }
+    },
+    {
+      "provider": "vault",
+      "address": "https://example.com",
+      "alias": "pki",
+      "token": "${var.vault_pki_token}"
+    }
+  ],
+  "control_planes": [
+    {
+      "resource_name": "au-test-aws",
+      "auth_type": "pki_client_certs",
+      "name": "test-aws",
+      "provider": "konnect.au",
+      "labels": {
+        "generator": "terranix",
+        "provisioner": "terraform"
+      }
+    },
+    {
+      "resource_name": "au-test-hcv",
+      "auth_type": "pki_client_certs",
+      "name": "test-hcv",
+      "provider": "konnect.au",
+      "labels": {
+        "generator": "terranix",
+        "provisioner": "terraform"
+      }
+    },
+    {
+      "resource_name": "au-test-self-signed",
+      "auth_type": "pinned_client_certs",
+      "name": "test-self-signed",
+      "provider": "konnect.au",
+      "labels": {
+        "generator": "terranix",
+        "provisioner": "terraform"
+      }
+    }
+  ],
+  "resources": [
+    {
+      "resource_type": "aws_secretsmanager_secret",
+      "resource_name": "au-test-aws_pki_cluster_config",
+      "name": "test/au-test-aws/cluster-config",
+      "provider": "aws.au-test-aws"
+    },
+    {
+      "resource_type": "aws_secretsmanager_secret",
+      "resource_name": "au-dev_team_group_system_token",
+      "name": "test-group/au/groups/dev_team/system-token",
+      "provider": "aws.au-group-dev_team"
+    },
+    {
+      "resource_type": "aws_secretsmanager_secret_version",
+      "resource_name": "au-test-aws_pki_cluster_version",
+      "provider": "aws.au-test-aws",
+      "secret_id": "${aws_secretsmanager_secret.au-test-aws_pki_cluster_config.id}"
+    },
+    {
+      "resource_type": "aws_secretsmanager_secret_version",
+      "resource_name": "au-dev_team_group_system_token_version",
+      "provider": "aws.au-group-dev_team",
+      "secret_id": "${aws_secretsmanager_secret.au-dev_team_group_system_token.id}"
+    },
+    {
+      "resource_type": "vault_pki_secret_backend_cert",
+      "resource_name": "au-test-aws",
+      "auto_renew": true,
+      "backend": "kong-pki",
+      "common_name": "konnect-au-test-aws",
+      "min_seconds_remaining": 3600,
+      "name": "kong-role",
+      "provider": "vault.pki",
+      "ttl": "168h"
+    },
+    {
+      "resource_type": "vault_kv_secret_v2",
+      "resource_name": "au-test-hcv_pki_cluster_config",
+      "mount": "test",
+      "name": "au/test-hcv/cluster-config",
+      "provider": "vault.storage"
+    },
+    {
+      "resource_type": "local_file",
+      "resource_name": "au-test-self-signed_pinned_cert",
+      "filename": "${path.module}/certs/au-test-self-signed-cert.pem"
+    },
+    {
+      "resource_type": "local_file",
+      "resource_name": "au-test-self-signed_pinned_key",
+      "filename": "${path.module}/certs/au-test-self-signed-key.pem"
+    },
+    {
+      "resource_type": "local_file",
+      "resource_name": "au-test-self-signed_pinned_config",
+      "filename": "${path.module}/certs/au-test-self-signed-cluster-config.json"
+    },
+    {
+      "resource_type": "tls_private_key",
+      "resource_name": "au-test-self-signed",
+      "algorithm": "RSA",
+      "rsa_bits": 2048,
+      "lifecycle": [
+        {
+          "replace_triggered_by": [
+            "time_rotating.au-test-self-signed_cert"
+          ]
+        }
+      ]
+    },
+    {
+      "resource_type": "tls_self_signed_cert",
+      "resource_name": "au-test-self-signed",
+      "subject": [
+        {
+          "common_name": "konnect-au-test-self-signed"
+        }
+      ],
+      "validity_period_hours": 168,
+      "depends_on": [
+        "tls_private_key.au-test-self-signed"
+      ],
+      "lifecycle": [
+        {
+          "replace_triggered_by": [
+            "time_rotating.au-test-self-signed_cert"
+          ]
+        }
+      ]
+    },
+    {
+      "resource_type": "time_rotating",
+      "resource_name": "au-test-self-signed_cert",
+      "rotation_days": 4
+    },
+    {
+      "resource_type": "time_rotating",
+      "resource_name": "au-dev_team_group_token",
+      "rotation_days": 23
+    },
+    {
+      "resource_type": "konnect_system_account",
+      "resource_name": "au-dev_team",
+      "name": "au-dev_team",
+      "provider": "konnect.id_admin"
+    },
+    {
+      "resource_type": "konnect_system_account_access_token",
+      "resource_name": "au-dev_team",
+      "account_id": "${konnect_system_account.au-dev_team.id}",
+      "expires_at": "${timeadd(time_rotating.au-dev_team_group_token.rotation_rfc3339, \"168h\")}",
+      "lifecycle": [
+        {
+          "replace_triggered_by": [
+            "time_rotating.au-dev_team_group_token"
+          ]
+        }
+      ]
+    },
+    {
+      "resource_type": "konnect_system_account_role",
+      "resource_name": "au-dev_team-test-hcv-group-role",
+      "account_id": "${konnect_system_account.au-dev_team.id}",
+      "entity_id": "${konnect_gateway_control_plane.au-test-hcv.id}",
+      "entity_region": "au",
+      "entity_type_name": "Control Planes",
+      "provider": "konnect.id_admin",
+      "role_name": "Admin"
+    },
+    {
+      "resource_type": "konnect_system_account_role",
+      "resource_name": "au-dev_team-test-self-signed-group-role",
+      "account_id": "${konnect_system_account.au-dev_team.id}",
+      "entity_id": "${konnect_gateway_control_plane.au-test-self-signed.id}",
+      "entity_region": "au",
+      "entity_type_name": "Control Planes",
+      "provider": "konnect.id_admin",
+      "role_name": "Admin"
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token"
+    },
+    {
+      "variable_name": "aws_region"
+    },
+    {
+      "variable_name": "aws_profile"
+    },
+    {
+      "variable_name": "vault_pki_token"
+    }
+  ]
+}

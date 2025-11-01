@@ -3,7 +3,7 @@
     nixpkgs-terraform.url = "github:stackbuilders/nixpkgs-terraform";
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     systems.url = "github:nix-systems/default";
-    kontfix.url = "path:../modules/kontfix";
+    kontfix.url = "github:liyangau/kontfix";
   };
   outputs =
     {
@@ -23,7 +23,7 @@
             pkgs = nixpkgs.legacyPackages.${system};
           }
         );
-      tf_version = "1.13.3";
+      tf_version = "1.13.4";
 
       testConfigurations =
         let

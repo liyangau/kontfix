@@ -24,3 +24,5 @@ Thumbs.db
 # Env files
 .env
 .envrc
+
+*.tf.json

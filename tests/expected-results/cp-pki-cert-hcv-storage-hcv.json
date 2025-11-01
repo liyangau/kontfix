@@ -1,0 +1,68 @@
+{
+  "providers": [
+    {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    },
+    {
+      "provider": "vault",
+      "address": "https://example.com",
+      "alias": "storage",
+      "auth_login": {
+        "parameters": {
+          "role_id": "${var.vault_role_id}",
+          "secret_id": "${var.vault_secret_id}"
+        },
+        "path": "auth/approle/login"
+      }
+    },
+    {
+      "provider": "vault",
+      "address": "https://example.com",
+      "alias": "pki",
+      "token": "${var.vault_pki_token}"
+    }
+  ],
+  "control_planes": [
+    {
+      "resource_name": "au-test",
+      "name": "test",
+      "provider": "konnect.au",
+      "auth_type": "pki_client_certs"
+    }
+  ],
+  "resources": [
+    {
+      "resource_type": "vault_kv_secret_v2",
+      "resource_name": "au-test_pki_cluster_config",
+      "mount": "konnect",
+      "name": "au/test/cluster-config",
+      "provider": "vault.storage"
+    },
+    {
+      "resource_type": "vault_pki_secret_backend_cert",
+      "resource_name": "au-test",
+      "backend": "rsa",
+      "common_name": "konnect-au-test",
+      "name": "client-cert",
+      "provider": "vault.pki",
+      "min_seconds_remaining": 604800
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token"
+    },
+    {
+      "variable_name": "vault_pki_token"
+    },
+    {
+      "variable_name": "vault_role_id"
+    },
+    {
+      "variable_name": "vault_secret_id"
+    }
+  ]
+}
