@@ -165,12 +165,12 @@ in
         };
       };
       self_signed_cert = {
-        validity_period_days = mkOption {
+        validity_period = mkOption {
           type = types.int;
           default = 90;
           description = "The validity period of self-signed certificates in days. Default is 90 days (3 months).";
         };
-        renewal_days_before_expiry = mkOption {
+        renewal_before_expiry = mkOption {
           type = types.int;
           default = 15;
           description = "Number of days before certificate expiry to trigger renewal. Default is 15 days before expiry.";

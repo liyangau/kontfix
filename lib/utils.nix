@@ -558,14 +558,14 @@ rec {
   # Validation function for self-signed certificate configuration
   validateSelfSignedCertConfig =
     selfSignedCertConfig:
-    if selfSignedCertConfig.validity_period_days <= 0 then
-      throw "kontfix.defaults.self_signed_cert.validity_period_days must be greater than 0, got ${toString selfSignedCertConfig.validity_period_days}"
-    else if selfSignedCertConfig.renewal_days_before_expiry <= 0 then
-      throw "kontfix.defaults.self_signed_cert.renewal_days_before_expiry must be greater than 0, got ${toString selfSignedCertConfig.renewal_days_before_expiry}"
+    if selfSignedCertConfig.validity_period <= 0 then
+      throw "kontfix.defaults.self_signed_cert.validity_period must be greater than 0, got ${toString selfSignedCertConfig.validity_period}"
+    else if selfSignedCertConfig.renewal_before_expiry <= 0 then
+      throw "kontfix.defaults.self_signed_cert.renewal_before_expiry must be greater than 0, got ${toString selfSignedCertConfig.renewal_before_expiry}"
     else if
-      selfSignedCertConfig.validity_period_days <= selfSignedCertConfig.renewal_days_before_expiry
+      selfSignedCertConfig.validity_period <= selfSignedCertConfig.renewal_before_expiry
     then
-      throw "kontfix.defaults.self_signed_cert.validity_period_days (${toString selfSignedCertConfig.validity_period_days}) must be greater than renewal_days_before_expiry (${toString selfSignedCertConfig.renewal_days_before_expiry})"
+      throw "kontfix.defaults.self_signed_cert.validity_period (${toString selfSignedCertConfig.validity_period}) must be greater than renewal_before_expiry (${toString selfSignedCertConfig.renewal_before_expiry})"
     else
       selfSignedCertConfig;
 }

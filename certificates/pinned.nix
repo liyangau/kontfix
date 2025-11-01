@@ -33,7 +33,7 @@ in
     resource.time_rotating = mkIf (pinnedCreateCertControlPlanes != { }) (
       mapAttrs (name: cp: {
         rotation_days =
-          selfSignedCertConfig.validity_period_days - selfSignedCertConfig.renewal_days_before_expiry;
+          selfSignedCertConfig.validity_period - selfSignedCertConfig.renewal_before_expiry;
       }) (mapAttrs' (name: cp: nameValuePair "${name}_cert" cp) pinnedCreateCertControlPlanes)
     );
 
@@ -60,7 +60,7 @@ in
             common_name = "konnect-${cp.region}-${cp.originalName}";
           }
         ];
-        validity_period_hours = selfSignedCertConfig.validity_period_days * 24;
+        validity_period_hours = selfSignedCertConfig.validity_period * 24;
         allowed_uses = [
           "digital_signature"
           "key_encipherment"
