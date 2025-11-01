@@ -41,6 +41,21 @@ let
       aws = mkOption {
         type = types.submodule {
           options = {
+            enable = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Whether to enable AWS provider";
+            };
+            profile = mkOption {
+              type = types.str;
+              default = "";
+              description = "AWS profile name to use";
+            };
+            region = mkOption {
+              type = types.str;
+              default = "";
+              description = "AWS region for resources";
+            };
             tags = mkOption {
               type = types.attrsOf types.str;
               default = { };
@@ -49,7 +64,7 @@ let
           };
         };
         default = { };
-        description = "AWS configuration for group system account token storage";
+        description = "AWS provider configuration for group system account token storage";
       };
     };
   };

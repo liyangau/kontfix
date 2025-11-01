@@ -322,6 +322,36 @@ rec {
     };
 
   # ============================================================================
+  # Group Validation Functions
+  # ============================================================================
+
+  # Group validation function - validates AWS configuration for groups
+  validateGroup =
+    {
+      group, # group object with regionName, groupName, groupConfig
+    }:
+    let
+      groupConfig = group.groupConfig;
+      # Validation 1: Groups using AWS backend must have aws.tags defined
+      usesAws = elem "aws" groupConfig.storage_backend;
+      awsTagsValid = !usesAws || (
+        groupConfig ? aws &&
+        groupConfig.aws ? tags &&
+        groupConfig.aws.tags != { }
+      );
+
+      # Validation 2: Groups using AWS backend must have aws.enable = true
+      awsEnabled = groupConfig.aws.enable or false;
+      awsStorageValid = !usesAws || awsEnabled;
+    in
+    if !awsTagsValid then
+      throw "Group '${group.groupName}' uses AWS backend but aws.tags is not defined or empty"
+    else if !awsStorageValid then
+      throw "Group '${group.groupName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
+    else
+      group;
+
+  # ============================================================================
   # Processing Functions
   # ============================================================================
 
@@ -360,6 +390,17 @@ rec {
     }
     // createFilteredControlPlaneCollections validatedControlPlanes;
 
+  # Helper function to convert validated groups back to groups structure for getGroupsWithStorage
+  groupsFromValidated = validatedGroups:
+    listToAttrs (
+      map (group: {
+        name = group.regionName;
+        value = {
+          ${group.originalName} = group.groupConfig;
+        };
+      }) validatedGroups
+    );
+
   # ============================================================================
   # Shared Context - Process once, use many times
   # ============================================================================
@@ -382,11 +423,20 @@ rec {
     processed
     // createFilteredControlPlaneCollections processed.validatedControlPlanes
     // {
-      # Add group-specific fields for easy access
-      storageRequiredGroups = groupProcessed.storageRequiredGroups;
-      awsStorageGroups = groupProcessed.awsStorageGroups;
-      hcvStorageGroups = groupProcessed.hcvStorageGroups;
-      localStorageGroups = groupProcessed.localStorageGroups;
+      # Add group-specific fields for easy access - use validated groups
+      storageRequiredGroups = filter (group: group.groupConfig.generate_token) groupProcessed.validatedGroups;
+      awsStorageGroups = getGroupsWithStorage {
+        groups = groupsFromValidated groupProcessed.validatedGroups;
+        backend = "aws";
+      };
+      hcvStorageGroups = getGroupsWithStorage {
+        groups = groupsFromValidated groupProcessed.validatedGroups;
+        backend = "hcv";
+      };
+      localStorageGroups = getGroupsWithStorage {
+        groups = groupsFromValidated groupProcessed.validatedGroups;
+        backend = "local";
+      };
       flattenedGroups = groupProcessed.flattenedGroups;
       validatedGroups = groupProcessed.validatedGroups;
     };
@@ -464,7 +514,7 @@ rec {
       # Filter groups with token generation enabled (regardless of backend)
       storageRequiredGroups = filter (group: group.groupConfig.generate_token) flattenedGroups;
       # Apply validation if requested
-      validatedGroups = if validation then flattenedGroups else flattenedGroups;
+      validatedGroups = if validation then map (group: validateGroup { inherit group; }) flattenedGroups else flattenedGroups;
     in
     {
       inherit flattenedGroups validatedGroups storageRequiredGroups;
