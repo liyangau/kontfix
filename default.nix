@@ -135,7 +135,7 @@ in
       pki_ca_certificate = mkOption {
         type = types.nullOr types.str;
         default = null;
-        description = "Default PKI CA certificate used for pki_client_certs authentication. Can be provided as string content or read from a file in the consumer's project directory (e.g., 'builtins.readFile ./pki-ca/ca.pem;').";
+        description = "Default PKI CA certificate used for pki_client_certs authentication. Can be provided as string content or read from a file (e.g., 'builtins.readFile ./pki-ca/ca.pem;').";
       };
       vault_pki = {
         backend = mkOption {
@@ -160,7 +160,7 @@ in
         };
         min_seconds_remaining = mkOption {
           type = types.int;
-          default = 604800;
+          default = 604800; # 7 days
           description = "Minimum seconds remaining before renewal";
         };
       };
@@ -174,6 +174,18 @@ in
           type = types.int;
           default = 15;
           description = "Number of days before certificate expiry to trigger renewal. Default is 15 days before expiry.";
+        };
+      };
+      system_account_tokens = {
+        validity_period = mkOption {
+          type = types.int;
+          default = 30;
+          description = "The validity period of system account access tokens in days. Default is 30 days.";
+        };
+        renewal_before_expiry = mkOption {
+          type = types.int;
+          default = 7;
+          description = "Number of days before token expiry to trigger renewal. Default is 7 days before expiry.";
         };
       };
     };
@@ -330,9 +342,11 @@ in
           planesWithTokens = filterAttrs (
             name: cp: cp.system_account.generate_token or false
           ) processed.individualSystemAccountPlanes;
+          rotationDays = cfg.defaults.system_account_tokens.validity_period - cfg.defaults.system_account_tokens.renewal_before_expiry;
+          renewalHours = cfg.defaults.system_account_tokens.renewal_before_expiry * 24;
         in
         mapAttrs (name: cp: {
-          rotation_days = 23;
+          rotation_days = rotationDays;
         }) (mapAttrs' (name: cp: nameValuePair "${name}_individual_token" cp) planesWithTokens);
 
       # Individual system account access tokens
@@ -341,11 +355,12 @@ in
           planesWithTokens = filterAttrs (
             name: cp: cp.system_account.generate_token or false
           ) processed.individualSystemAccountPlanes;
+          renewalHours = cfg.defaults.system_account_tokens.renewal_before_expiry * 24;
         in
         mapAttrs (name: cp: {
           provider = "konnect.id_admin";
           name = "TF Managed Token for CP ${cp.originalName} in ${cp.region} region";
-          expires_at = "\${timeadd(time_rotating.${name}_individual_token.rotation_rfc3339, \"168h\")}";
+          expires_at = "\${timeadd(time_rotating.${name}_individual_token.rotation_rfc3339, \"${toString renewalHours}h\")}";
           account_id = "\${konnect_system_account.${name}.id}";
           lifecycle = [
             {

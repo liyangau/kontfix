@@ -95,9 +95,14 @@ in
             ];
             generate_token = true;
             storage_backend = [ "aws" ];
-            aws.tags = {
-              environment = "staging";
-              team = "platform";
+            aws = {
+              enable = true;
+              profile = "default";
+              region = "ap-southeast-2";
+              tags = {
+                environment = "staging";
+                team = "platform";
+              };
             };
           };
         };
@@ -139,33 +144,41 @@ in
     );
 
     # Group token rotation
-    resource.time_rotating = listToAttrs (
-      map (group: {
-        name = "${group.groupName}_group_token";
-        value = {
-          rotation_days = 23; # Rotate after 23 days (7 days before 30-day expiry)
-        };
-      }) storageRequiredGroups
-    );
+    resource.time_rotating =
+      let
+        rotationDays = cfg.defaults.system_account_tokens.validity_period - cfg.defaults.system_account_tokens.renewal_before_expiry;
+      in
+      listToAttrs (
+        map (group: {
+          name = "${group.groupName}_group_token";
+          value = {
+            rotation_days = rotationDays;
+          };
+        }) storageRequiredGroups
+      );
 
     # Group system account access tokens
-    resource.konnect_system_account_access_token = listToAttrs (
-      map (group: {
-        name = group.groupName;
-        value = {
-          provider = "konnect.id_admin";
-          name = "${group.groupName} Group TF Managed Token";
-          expires_at = "\${timeadd(time_rotating.${group.groupName}_group_token.rotation_rfc3339, \"168h\")}"; # add 7 days to rotation time
-          account_id = "\${konnect_system_account.${group.groupName}.id}";
-          lifecycle = [
-            {
-              replace_triggered_by = [
-                "time_rotating.${group.groupName}_group_token"
-              ];
-            }
-          ];
-        };
-      }) storageRequiredGroups
-    );
+    resource.konnect_system_account_access_token =
+      let
+        renewalHours = cfg.defaults.system_account_tokens.renewal_before_expiry * 24;
+      in
+      listToAttrs (
+        map (group: {
+          name = group.groupName;
+          value = {
+            provider = "konnect.id_admin";
+            name = "${group.groupName} Group TF Managed Token";
+            expires_at = "\${timeadd(time_rotating.${group.groupName}_group_token.rotation_rfc3339, \"${toString renewalHours}h\")}"; # add renewal_before_expiry days to rotation time
+            account_id = "\${konnect_system_account.${group.groupName}.id}";
+            lifecycle = [
+              {
+                replace_triggered_by = [
+                  "time_rotating.${group.groupName}_group_token"
+                ];
+              }
+            ];
+          };
+        }) storageRequiredGroups
+      );
   };
 }

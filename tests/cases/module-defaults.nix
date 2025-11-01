@@ -41,6 +41,10 @@
         validity_period = 7;
         renewal_before_expiry = 3;
       };
+      system_account_tokens = {
+        validity_period = 15;
+        renewal_before_expiry = 5;
+      };
     };
     controlPlanes = {
       au = {

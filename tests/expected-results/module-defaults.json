@@ -168,7 +168,7 @@
     {
       "resource_type": "time_rotating",
       "resource_name": "au-dev_team_group_token",
-      "rotation_days": 23
+      "rotation_days": 10
     },
     {
       "resource_type": "konnect_system_account",
@@ -180,7 +180,7 @@
       "resource_type": "konnect_system_account_access_token",
       "resource_name": "au-dev_team",
       "account_id": "${konnect_system_account.au-dev_team.id}",
-      "expires_at": "${timeadd(time_rotating.au-dev_team_group_token.rotation_rfc3339, \"168h\")}",
+      "expires_at": "${timeadd(time_rotating.au-dev_team_group_token.rotation_rfc3339, \"120h\")}",
       "lifecycle": [
         {
           "replace_triggered_by": [
