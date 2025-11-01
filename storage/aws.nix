@@ -51,25 +51,17 @@ in
       ) awsStorageSysAccountControlPlanes)
 
       # Group system account tokens
-      (mapAttrs'
-        (
-          name: group:
-          nameValuePair "${group.groupName}_group_system_token" {
-            provider = "aws.${group.regionName}-group-${group.groupName}";
-            name = "${storageDefaults.aws.group_prefix}/${group.regionName}/groups/${group.groupName}/system-token";
+      (listToAttrs (
+        map (group: {
+          name = "${group.groupName}_group_system_token";
+          value = {
+            provider = "aws.${group.regionName}-group-${group.originalName}";
+            name = "${storageDefaults.aws.group_prefix}/${group.regionName}/groups/${group.originalName}/system-token";
             recovery_window_in_days = 0;
             tags = group.groupConfig.aws.tags;
-          }
-        )
-        (
-          listToAttrs (
-            map (group: {
-              name = group.groupName;
-              value = group;
-            }) awsStorageGroups
-          )
-        )
-      )
+          };
+        }) awsStorageGroups
+      ))
     ];
 
     resource.aws_secretsmanager_secret_version = mkMerge [

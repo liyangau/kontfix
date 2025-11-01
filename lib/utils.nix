@@ -494,9 +494,8 @@ rec {
         mapAttrsToList (groupName: groupConfig: {
           inherit regionName;
           groupName = "${regionName}-${groupName}";
-          groupConfig = groupConfig // {
-            originalName = groupName;
-          };
+          inherit groupConfig;
+          originalName = groupName; # Store original name for reference
         }) regionGroups
       ) groups
     );

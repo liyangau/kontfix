@@ -93,20 +93,22 @@ let
 
   # Generate AWS provider configurations for each group using AWS storage
   awsGroupProviders = mkIf (awsGroups != { }) (
-    attrValues (
-      mapAttrs (
-        regionName: regionGroups:
-        attrValues (
-          mapAttrs (
-            groupName: groupConfig:
-            mkIf (elem "aws" groupConfig.storage_backend) {
-              alias = "${regionName}-group-${groupName}";
-              profile = "\${var.aws_profile}";
-              region = "\${var.aws_region}";
-            }
-          ) regionGroups
-        )
-      ) awsGroups
+    flatten (
+      attrValues (
+        mapAttrs (
+          regionName: regionGroups:
+          attrValues (
+            mapAttrs (
+              groupName: groupConfig:
+              mkIf (elem "aws" groupConfig.storage_backend) {
+                alias = "${regionName}-group-${groupName}";
+                profile = "\${var.aws_profile}";
+                region = "\${var.aws_region}";
+              }
+            ) regionGroups
+          )
+        ) awsGroups
+      )
     )
   );
 

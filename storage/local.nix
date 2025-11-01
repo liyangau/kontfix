@@ -127,7 +127,7 @@ in
             created_at = konnect_system_account_access_token.${group.groupName}.created_at
             members = ${builtins.toJSON group.groupConfig.members}
           })}";
-            filename = "\${path.module}/tokens/${group.regionName}_group_${group.groupName}.json";
+            filename = "\${path.module}/tokens/${group.regionName}_group_${group.originalName}.json";
             file_permission = "0400";
             directory_permission = "0700";
             depends_on = [ "null_resource.create_token_dir" ];
