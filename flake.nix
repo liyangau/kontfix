@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     terranix.url = "github:terranix/terranix";
+    systems.url = "github:nix-systems/default";
   };
 
   outputs =
@@ -11,7 +12,25 @@
       self,
       nixpkgs,
       terranix,
+      systems,
     }:
+    let
+      forEachSystem =
+        f:
+        nixpkgs.lib.genAttrs (import systems) (
+          system:
+          f {
+            inherit system;
+            pkgs = nixpkgs.legacyPackages.${system};
+          }
+        );
+
+      eval = nixpkgs.lib.evalModules {
+        modules = [
+          ./docs
+        ];
+      };
+    in
     {
       lib = {
         kontfixConfiguration =
@@ -51,5 +70,21 @@
       };
 
       defaultTemplate = self.templates.basic;
+
+      packages = forEachSystem (
+        { system, pkgs }:
+        let
+          docsBuild = import ./docs/build.nix { inherit pkgs self eval; };
+        in
+        {
+          inherit (docsBuild)
+            docs-md
+            docs
+            docs-deploy
+            defaults-docs-md
+            controlplanes-docs-md
+            groups-docs-md;
+        }
+      );
     };
 }
