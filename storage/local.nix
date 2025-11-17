@@ -154,6 +154,11 @@ in
           cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
           telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
           cp_id = konnect_gateway_control_plane.${name}.id
+          cluster_prefix = regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]
+          cluster_control_plane = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.cp.konghq.com:443\"
+          cluster_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.cp.konghq.com\"
+          cluster_telemetry_endpoint = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com:443\"
+          cluster_telemetry_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com\"
           })}";
           filename = "\${path.module}/certs/${name}-cluster-config.json";
           file_permission = "0400";
@@ -179,6 +184,11 @@ in
           cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
           telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
           cp_id = konnect_gateway_control_plane.${name}.id
+          cluster_prefix = regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]
+          cluster_control_plane = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.cp.konghq.com:443\"
+          cluster_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.cp.konghq.com\"
+          cluster_telemetry_endpoint = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com:443\"
+          cluster_telemetry_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com\"
           })}";
           filename = "\${path.module}/certs/${name}-pki-cluster-config.json";
           file_permission = "0400";
