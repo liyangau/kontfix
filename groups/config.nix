@@ -1,4 +1,9 @@
-{ config, lib, sharedContext, ... }:
+{
+  config,
+  lib,
+  sharedContext,
+  ...
+}:
 with lib;
 let
   cfg = config.kontfix;
@@ -43,7 +48,9 @@ in
     # Group token rotation
     resource.time_rotating =
       let
-        rotationDays = cfg.defaults.system_account_tokens.validity_period - cfg.defaults.system_account_tokens.renewal_before_expiry;
+        rotationDays =
+          cfg.defaults.system_account_tokens.validity_period
+          - cfg.defaults.system_account_tokens.renewal_before_expiry;
       in
       listToAttrs (
         map (group: {

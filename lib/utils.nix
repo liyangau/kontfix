@@ -13,7 +13,6 @@ rec {
     pinned = "pinned_client_certs";
   };
 
-  
   # Cluster types
   clusterTypes = {
     controlPlane = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
@@ -324,11 +323,8 @@ rec {
       groupConfig = group.groupConfig;
       # Validation 1: Groups using AWS backend must have aws.tags defined
       usesAws = elem "aws" groupConfig.storage_backend;
-      awsTagsValid = !usesAws || (
-        groupConfig ? aws &&
-        groupConfig.aws ? tags &&
-        groupConfig.aws.tags != { }
-      );
+      awsTagsValid =
+        !usesAws || (groupConfig ? aws && groupConfig.aws ? tags && groupConfig.aws.tags != { });
 
       # Validation 2: Groups using AWS backend must have aws.enable = true
       awsEnabled = groupConfig.aws.enable or false;
@@ -381,7 +377,8 @@ rec {
     // createFilteredControlPlaneCollections validatedControlPlanes;
 
   # Helper function to convert validated groups back to groups structure for getGroupsWithStorage
-  groupsFromValidated = validatedGroups:
+  groupsFromValidated =
+    validatedGroups:
     listToAttrs (
       map (group: {
         name = group.regionName;
@@ -414,7 +411,9 @@ rec {
     // createFilteredControlPlaneCollections processed.validatedControlPlanes
     // {
       # Add group-specific fields for easy access - use validated groups
-      storageRequiredGroups = filter (group: group.groupConfig.generate_token) groupProcessed.validatedGroups;
+      storageRequiredGroups = filter (
+        group: group.groupConfig.generate_token
+      ) groupProcessed.validatedGroups;
       awsStorageGroups = getGroupsWithStorage {
         groups = groupsFromValidated groupProcessed.validatedGroups;
         backend = "aws";
@@ -504,7 +503,11 @@ rec {
       # Filter groups with token generation enabled (regardless of backend)
       storageRequiredGroups = filter (group: group.groupConfig.generate_token) flattenedGroups;
       # Apply validation if requested
-      validatedGroups = if validation then map (group: validateGroup { inherit group; }) flattenedGroups else flattenedGroups;
+      validatedGroups =
+        if validation then
+          map (group: validateGroup { inherit group; }) flattenedGroups
+        else
+          flattenedGroups;
     in
     {
       inherit flattenedGroups validatedGroups storageRequiredGroups;
@@ -601,9 +604,7 @@ rec {
       throw "kontfix.defaults.self_signed_cert.validity_period must be greater than 0, got ${toString selfSignedCertConfig.validity_period}"
     else if selfSignedCertConfig.renewal_before_expiry <= 0 then
       throw "kontfix.defaults.self_signed_cert.renewal_before_expiry must be greater than 0, got ${toString selfSignedCertConfig.renewal_before_expiry}"
-    else if
-      selfSignedCertConfig.validity_period <= selfSignedCertConfig.renewal_before_expiry
-    then
+    else if selfSignedCertConfig.validity_period <= selfSignedCertConfig.renewal_before_expiry then
       throw "kontfix.defaults.self_signed_cert.validity_period (${toString selfSignedCertConfig.validity_period}) must be greater than renewal_before_expiry (${toString selfSignedCertConfig.renewal_before_expiry})"
     else
       selfSignedCertConfig;

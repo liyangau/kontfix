@@ -83,7 +83,8 @@
             docs-deploy
             defaults-docs-md
             controlplanes-docs-md
-            groups-docs-md;
+            groups-docs-md
+            ;
         }
       );
     };

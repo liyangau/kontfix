@@ -15,7 +15,10 @@
     groups = {
       au = {
         dev_team = {
-          members = [ "test" "demo" ];
+          members = [
+            "test"
+            "demo"
+          ];
           generate_token = true;
           storage_backend = [ "local" ];
         };

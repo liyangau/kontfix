@@ -1,40 +1,46 @@
-{ pkgs, self, eval }:
+{
+  pkgs,
+  self,
+  eval,
+}:
 
 let
   repoUrl = "https://github.com/liyangau/kontfix";
 
   # Helper function to create options documentation for a specific section
-  createOptionsDoc = options: pkgs.nixosOptionsDoc {
-    inherit options;
-    transformOptions =
-      opt:
-      opt
-      // {
-        declarations = map (
-          decl:
-          let
-            path = pkgs.lib.removePrefix (toString self + "/") (toString decl);
-          in
-          {
-            url = "${repoUrl}/blob/main/${path}";
-            name = path;
-          }
-        ) opt.declarations;
-        name =
-          let
-            origName = opt.name;
-          in
-          if pkgs.lib.hasSuffix ".<name>.<name>" origName then
-            pkgs.lib.replaceStrings [ ".<name>.<name>" ] [ ".<region>.<controlPlane>" ] origName
-          else
-            pkgs.lib.replaceStrings [ ".<name>.<name>." ] [ ".<region>.<controlPlane>." ] origName;
-      };
-  };
+  createOptionsDoc =
+    options:
+    pkgs.nixosOptionsDoc {
+      inherit options;
+      transformOptions =
+        opt:
+        opt
+        // {
+          declarations = map (
+            decl:
+            let
+              path = pkgs.lib.removePrefix (toString self + "/") (toString decl);
+            in
+            {
+              url = "${repoUrl}/blob/main/${path}";
+              name = path;
+            }
+          ) opt.declarations;
+          name =
+            let
+              origName = opt.name;
+            in
+            if pkgs.lib.hasSuffix ".<name>.<name>" origName then
+              pkgs.lib.replaceStrings [ ".<name>.<name>" ] [ ".<region>.<controlPlane>" ] origName
+            else
+              pkgs.lib.replaceStrings [ ".<name>.<name>." ] [ ".<region>.<controlPlane>." ] origName;
+        };
+    };
 
   # Extract options for each section
-  defaultsOptions = eval.options.kontfix.defaults or {};
-  controlPlanesOptions = eval.options.kontfix.controlPlanes or {};
-  groupsOptions = eval.options.kontfix.groups or {};
+  defaultsOptions = eval.options.kontfix.defaults or { };
+  controlPlanesOptions = eval.options.kontfix.controlPlanes or { };
+  groupsOptions = eval.options.kontfix.groups or { };
 
   # Create documentation for each section
   defaultsDoc = createOptionsDoc defaultsOptions;
@@ -127,9 +133,9 @@ in
         cat <<EOF > docs/index.md
         # Kontfix Documentation
 
-        
+
         Welcome to the Kontfix documentation. Kontfix is an opinionated Nix-based framework for managing Kong Konnect control planes and related resources include system accounts, client certificates via Terraform. 
-        
+
         ![Kontfix](kontfix.png)
         ## Sections
 
@@ -260,7 +266,10 @@ in
   # Package that creates a deployable docs directory
   docs-deploy = pkgs.writeShellApplication {
     name = "deploy-docs";
-    runtimeInputs = with pkgs; [ rsync git ];
+    runtimeInputs = with pkgs; [
+      rsync
+      git
+    ];
     text = ''
       # Build the docs first
       nix build .#docs

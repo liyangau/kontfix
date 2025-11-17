@@ -32,8 +32,7 @@ in
     # Time rotation for certificate lifecycle management
     resource.time_rotating = mkIf (pinnedCreateCertControlPlanes != { }) (
       mapAttrs (name: cp: {
-        rotation_days =
-          selfSignedCertConfig.validity_period - selfSignedCertConfig.renewal_before_expiry;
+        rotation_days = selfSignedCertConfig.validity_period - selfSignedCertConfig.renewal_before_expiry;
       }) (mapAttrs' (name: cp: nameValuePair "${name}_cert" cp) pinnedCreateCertControlPlanes)
     );
 

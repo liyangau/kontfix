@@ -175,7 +175,9 @@ in
           planesWithTokens = filterAttrs (
             name: cp: cp.system_account.generate_token or false
           ) processed.individualSystemAccountPlanes;
-          rotationDays = cfg.defaults.system_account_tokens.validity_period - cfg.defaults.system_account_tokens.renewal_before_expiry;
+          rotationDays =
+            cfg.defaults.system_account_tokens.validity_period
+            - cfg.defaults.system_account_tokens.renewal_before_expiry;
           renewalHours = cfg.defaults.system_account_tokens.renewal_before_expiry * 24;
         in
         mapAttrs (name: cp: {
