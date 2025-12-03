@@ -26,7 +26,7 @@ in
         name: cp:
         nameValuePair "${name}_pki_cluster_config" {
           provider = "aws.${cp.region}-${cp.originalName}";
-          name = "${storageDefaults.aws.cp_prefix}/${name}/cluster-config";
+          name = "${storageDefaults.aws.cp_prefix}/${cp.region}/${cp.originalName}/cluster-config";
           recovery_window_in_days = 0;
           tags = cp.aws.tags;
         }
@@ -36,7 +36,7 @@ in
         name: cp:
         nameValuePair "${name}_pinned_cluster_config" {
           provider = "aws.${cp.region}-${cp.originalName}";
-          name = "${storageDefaults.aws.cp_prefix}/${name}/cluster-config";
+          name = "${storageDefaults.aws.cp_prefix}/${cp.region}/${cp.originalName}/cluster-config";
           recovery_window_in_days = 0;
           tags = cp.aws.tags;
         }
