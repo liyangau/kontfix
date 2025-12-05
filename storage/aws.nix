@@ -10,7 +10,6 @@ with lib;
 
 let
   cps = config.kontfix.controlPlanes;
-  awsStorageControlPlanes = sharedContext.awsStorageControlPlanes;
   awsStorageGroups = sharedContext.awsStorageGroups;
   awsStoragePkiCertControlPlanes = sharedContext.awsStoragePkiCertControlPlanes;
   awsStoragePinnedCertControlPlanes = sharedContext.awsStoragePinnedCertControlPlanes;

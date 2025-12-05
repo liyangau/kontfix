@@ -1,7 +1,3 @@
-{ config, lib, ... }:
-
-with lib;
-
 {
   imports = [
     ./hcv.nix

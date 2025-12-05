@@ -13,6 +13,10 @@ rec {
     pinned = "pinned_client_certs";
   };
 
+  supportedPkiBackend = [
+    "hcv"
+  ];
+
   # Cluster types
   clusterTypes = {
     controlPlane = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
@@ -33,6 +37,75 @@ rec {
   # ============================================================================
   # Helper Functions
   # ============================================================================
+
+  # Single-pass tagging for O(n) performance
+  # Tags control planes once, then filters become O(1) lookups
+  tagControlPlanes =
+    controlPlanes:
+    mapAttrs (
+      name: cp:
+      let
+        # Calculate all tags once per control plane
+        hasPki = cp.auth_type == authTypes.pki;
+        hasPinned = cp.auth_type == authTypes.pinned;
+        createsCert = cp.create_certificate or false;
+        systemAccountEnabled = cp.system_account.enable or false;
+        systemAccountGenToken = cp.system_account.generate_token or false;
+        usesHcv = elem "hcv" cp.storage_backend;
+        usesAws = elem "aws" cp.storage_backend;
+        usesLocal = elem "local" cp.storage_backend;
+        awsEnabled = cp.aws.enable or false;
+        isGroup = cp.cluster_type == clusterTypes.controlPlaneGroup;
+        needsStorage = createsCert || (systemAccountEnabled && systemAccountGenToken);
+      in
+      cp
+      // {
+        _tags = {
+          inherit
+            hasPki
+            hasPinned
+            createsCert
+            systemAccountEnabled
+            systemAccountGenToken
+            usesHcv
+            usesAws
+            usesLocal
+            awsEnabled
+            isGroup
+            needsStorage
+            ;
+
+          # Combined tags for common filter patterns
+          pkiAndCert = hasPki && createsCert;
+          pinnedAndCert = hasPinned && createsCert;
+          systemAccountWithToken = systemAccountEnabled && systemAccountGenToken;
+          awsStorageEnabled = usesAws && awsEnabled;
+        };
+      }
+    ) controlPlanes;
+
+  # Tag-based filtering functions (O(1) lookups after tagging)
+  filterByTag =
+    tag: taggedControlPlanes: filterAttrs (_: cp: cp._tags.${tag} or false) taggedControlPlanes;
+
+  # Tag-based storage filtering with conditions
+  filterByStorageTag =
+    {
+      taggedControlPlanes,
+      backend,
+      requireEnabled ? false,
+    }:
+    filterAttrs (
+      _: cp:
+      if backend == "aws" then
+        cp._tags.usesAws && (if requireEnabled then cp._tags.awsEnabled else true)
+      else if backend == "hcv" then
+        cp._tags.usesHcv
+      else if backend == "local" then
+        cp._tags.usesLocal
+      else
+        false
+    ) taggedControlPlanes;
 
   # Helper function to add provisioner and default labels
   addLabels =
@@ -71,88 +144,99 @@ rec {
       || (cp.system_account.enable or false && cp.system_account.generate_token or false)
     ) controlPlanes;
 
+  # Generic filter builder for storage backends with optional enabled flag
+  makeStorageFilter =
+    {
+      backend,
+      requireEnabled ? false,
+      requireStorage ? true,
+    }:
+    filterAttrs (
+      name: cp:
+      (if requireStorage then elem backend cp.storage_backend else true)
+      && (if requireEnabled then (cp.${backend}.enable or false) else true)
+    );
+
   # Filter control planes by storage backend
   filterByStorageBackend =
-    { controlPlanes, backend }: filterAttrs (name: cp: elem backend cp.storage_backend) controlPlanes;
+    { controlPlanes, backend }: makeStorageFilter { inherit backend; } controlPlanes;
 
-  # Create all filtered collections for control planes to eliminate duplication
+  # Filter control planes by AWS storage backend AND aws.enable = true
+  filterByAwsStorageWithEnabledFlag = makeStorageFilter {
+    backend = "aws";
+    requireEnabled = true;
+  };
+
+  # Filter control planes that need AWS providers (either use AWS storage OR have aws.enable = true)
+  filterByAwsProviderRequired = filterAttrs (
+    name: cp: elem "aws" cp.storage_backend || (cp.aws.enable or false)
+  );
+
+  # Generic filter combinator to reduce duplication
+  combineFilters = filters: controlPlanes: foldl' (acc: filter: filter acc) controlPlanes filters;
+
+  # Helper to create storage + cert type filters
+  createStorageCertFilters = storageBackend: controlPlanes: {
+    pkiCert = filterByCertType {
+      controlPlanes = storageBackend;
+      certType = authTypes.pki;
+    };
+    pinnedCert = filterByCertType {
+      controlPlanes = storageBackend;
+      certType = authTypes.pinned;
+    };
+    sysAccount = filterSystemAccountTokenPlanes storageBackend;
+  };
+
+  # Create all filtered collections for control planes using tagged approach (O(1) lookups)
   createFilteredControlPlaneCollections =
-    validatedControlPlanes:
+    taggedValidatedControlPlanes:
     let
-      # Certificate-based filters
-      pkiCertControlPlanes = filterByCertType {
-        controlPlanes = validatedControlPlanes;
-        certType = authTypes.pki;
-      };
+      # O(1) tag-based filters - no more iterations!
+      pkiCertControlPlanes = filterByTag "pkiAndCert" taggedValidatedControlPlanes;
+      pinnedCertControlPlanes = filterByTag "pinnedAndCert" taggedValidatedControlPlanes;
 
-      pinnedCertControlPlanes = filterByCertType {
-        controlPlanes = validatedControlPlanes;
-        certType = authTypes.pinned;
-      };
-
-      # Storage-based filters
-      hcvStorageControlPlanes = filterByStorageBackend {
-        controlPlanes = validatedControlPlanes;
+      # Storage-based filters (still O(1) lookups)
+      hcvStorageControlPlanes = filterByStorageTag {
+        taggedControlPlanes = taggedValidatedControlPlanes;
         backend = "hcv";
       };
-
-      awsStorageControlPlanes = filterByStorageBackend {
-        controlPlanes = validatedControlPlanes;
+      awsStorageControlPlanes = filterByStorageTag {
+        taggedControlPlanes = taggedValidatedControlPlanes;
         backend = "aws";
+        requireEnabled = true;
       };
-
-      localStorageControlPlanes = filterByStorageBackend {
-        controlPlanes = validatedControlPlanes;
+      localStorageControlPlanes = filterByStorageTag {
+        taggedControlPlanes = taggedValidatedControlPlanes;
         backend = "local";
       };
 
-      awsStoragePkiCertControlPlanes = filterByCertType {
-        controlPlanes = awsStorageControlPlanes;
-        certType = authTypes.pki;
-      };
+      # Individual system account filters
+      individualSystemAccountPlanes = filterByTag "systemAccountEnabled" taggedValidatedControlPlanes;
 
-      awsStoragePinnedCertControlPlanes = filterByCertType {
-        controlPlanes = awsStorageControlPlanes;
-        certType = authTypes.pinned;
-      };
-      awsStorageSysAccountControlPlanes = filterSystemAccountTokenPlanes awsStorageControlPlanes;
+      # Other O(1) filters
+      outputEnabledControlPlanes = filterAttrs (_: cp: cp.output or false) taggedValidatedControlPlanes;
+      storageRequiredControlPlanes = filterByTag "needsStorage" taggedValidatedControlPlanes;
 
-      hcvStoragePkiCertControlPlanes = filterByCertType {
-        controlPlanes = hcvStorageControlPlanes;
-        certType = authTypes.pki;
-      };
+      # AWS-specific filters (still O(1))
+      awsProviderRequiredControlPlanes = filterAttrs (
+        _: cp: cp._tags.usesAws || cp._tags.awsEnabled
+      ) taggedValidatedControlPlanes;
+      awsEnabledControlPlanes = filterByTag "awsEnabled" taggedValidatedControlPlanes;
+      awsEnabledWithStorage = filterByTag "awsStorageEnabled" taggedValidatedControlPlanes;
 
-      hcvStoragePinnedCertControlPlanes = filterByCertType {
-        controlPlanes = hcvStorageControlPlanes;
-        certType = authTypes.pinned;
-      };
+      # Combined storage + cert type filters (still O(1) - just chaining O(1) operations)
+      awsStoragePkiCertControlPlanes = filterByTag "pkiAndCert" awsStorageControlPlanes;
+      awsStoragePinnedCertControlPlanes = filterByTag "pinnedAndCert" awsStorageControlPlanes;
+      awsStorageSysAccountControlPlanes = filterByTag "systemAccountWithToken" awsStorageControlPlanes;
 
-      hcvStorageSysAccountControlPlanes = filterSystemAccountTokenPlanes hcvStorageControlPlanes;
+      hcvStoragePkiCertControlPlanes = filterByTag "pkiAndCert" hcvStorageControlPlanes;
+      hcvStoragePinnedCertControlPlanes = filterByTag "pinnedAndCert" hcvStorageControlPlanes;
+      hcvStorageSysAccountControlPlanes = filterByTag "systemAccountWithToken" hcvStorageControlPlanes;
 
-      localStoragePkiCertControlPlanes = filterByCertType {
-        controlPlanes = localStorageControlPlanes;
-        certType = authTypes.pki;
-      };
-
-      localStoragePinnedCertControlPlanes = filterByCertType {
-        controlPlanes = localStorageControlPlanes;
-        certType = authTypes.pinned;
-      };
-
-      localStorageSysAccountControlPlanes = filterSystemAccountTokenPlanes localStorageControlPlanes;
-
-      # Other filters
-      individualSystemAccountPlanes = filterIndividualSystemAccountPlanes validatedControlPlanes;
-      outputEnabledControlPlanes = filterAttrs (_: cp: cp.output or false) validatedControlPlanes;
-
-      # Storage requirement filter (using new function)
-      storageRequiredControlPlanes = filterStorageRequiredControlPlanes validatedControlPlanes;
-
-      # AWS-specific filters
-      awsEnabledControlPlanes = filterAttrs (_: cp: cp.aws.enable or false) validatedControlPlanes;
-      awsEnabledWithStorage = filterAttrs (
-        name: cp: cp.aws.enable or false && elem "aws" cp.storage_backend
-      ) validatedControlPlanes;
+      localStoragePkiCertControlPlanes = filterByTag "pkiAndCert" localStorageControlPlanes;
+      localStoragePinnedCertControlPlanes = filterByTag "pinnedAndCert" localStorageControlPlanes;
+      localStorageSysAccountControlPlanes = filterByTag "systemAccountWithToken" localStorageControlPlanes;
     in
     {
       inherit
@@ -164,17 +248,18 @@ rec {
         individualSystemAccountPlanes
         outputEnabledControlPlanes
         storageRequiredControlPlanes
+        awsProviderRequiredControlPlanes
         awsEnabledControlPlanes
         awsEnabledWithStorage
         awsStoragePkiCertControlPlanes
         awsStoragePinnedCertControlPlanes
         awsStorageSysAccountControlPlanes
-        hcvStorageSysAccountControlPlanes
-        hcvStoragePinnedCertControlPlanes
         hcvStoragePkiCertControlPlanes
-        localStorageSysAccountControlPlanes
-        localStoragePinnedCertControlPlanes
+        hcvStoragePinnedCertControlPlanes
+        hcvStorageSysAccountControlPlanes
         localStoragePkiCertControlPlanes
+        localStoragePinnedCertControlPlanes
+        localStorageSysAccountControlPlanes
         ;
     };
 
@@ -197,6 +282,50 @@ rec {
     );
 
   # ============================================================================
+  # Group Validation - Prevent groups from referencing other groups
+  # ============================================================================
+
+  # Simple validation: Control plane groups can only reference individual control planes
+  validateNoGroupReferences =
+    allControlPlanes:
+    let
+      # Helper to find a control plane by original name
+      findByOriginalName =
+        originalName:
+        let
+          matches = filterAttrs (n: cp: (cp.originalName or "") == originalName) allControlPlanes;
+        in
+        if matches == { } then { } else head (attrValues matches);
+
+      findGroupReferences = mapAttrsToList (
+        name: cp:
+        if cp.cluster_type == clusterTypes.controlPlaneGroup then
+          let
+            invalidMembers = filter (
+              member:
+              let
+                memberCP = findByOriginalName member;
+              in
+              hasAttr "cluster_type" memberCP && memberCP.cluster_type == clusterTypes.controlPlaneGroup
+            ) (cp.members or [ ]);
+          in
+          if invalidMembers != [ ] then [ { inherit name invalidMembers; } ] else [ ]
+        else
+          [ ]
+      ) allControlPlanes;
+
+      invalidReferences = concatLists findGroupReferences;
+    in
+    if invalidReferences != [ ] then
+      let
+        firstError = head invalidReferences;
+        membersList = concatStringsSep ", " firstError.invalidMembers;
+      in
+      throw "Control plane group '${firstError.name}' cannot reference other control plane groups: ${membersList}. Groups may only reference individual control planes."
+    else
+      allControlPlanes;
+
+  # ============================================================================
   # Validation Functions - Split into local and cross-cutting
   # ============================================================================
 
@@ -205,9 +334,11 @@ rec {
     {
       name,
       cp,
-      allControlPlaneNames,
+      allControlPlanes, # Fixed: Pass the full attrset, not just names
     }:
     let
+      # Extract original names from flattened control planes for validation
+      allControlPlaneNames = map (cp: cp.originalName or cp.name) (attrValues allControlPlanes);
       isGroup = cp.cluster_type == clusterTypes.controlPlaneGroup;
       hasMembers = cp.members != [ ];
 
@@ -219,8 +350,16 @@ rec {
       membersDefined = undefinedMembers == [ ];
 
       # Validation 3: Members of control plane groups must not have create_certificates = true
+      # Helper to find a control plane by original name
+      findByOriginalName =
+        originalName:
+        let
+          matches = filterAttrs (n: cp: (cp.originalName or "") == originalName) allControlPlanes;
+        in
+        if matches == { } then { } else head (attrValues matches);
+
       invalidCertMembers = filter (
-        member: allControlPlaneNames.${member}.create_certificate or false
+        member: (findByOriginalName member).create_certificate or false
       ) cp.members;
       membersCertValid = invalidCertMembers == [ ];
 
@@ -244,9 +383,14 @@ rec {
 
       # Validation 9: Region must be in allowed list
       regionValid = elem cp.region allowedRegions;
+
+      # Validation 10: PKI control planes with create_certificate = true must have a supported pki_backend
+      usesPkiAuth = cp.auth_type == authTypes.pki;
+      createsCert = cp.create_certificate or false;
+      pkiBackendValid = !usesPkiAuth || !createsCert || (elem cp.pki_backend supportedPkiBackend);
     in
     if !membersTypeValid then
-      throw "Control plane '${cp.originalName}' has members ${toString cp.members} but its cluster_type is not ${clusterTypes.controlPlaneGroup}"
+      throw "Control plane '${name}' has members ${toString cp.members} but cluster_type is not CLUSTER_TYPE_CONTROL_PLANE_GROUP"
     else if !membersDefined then
       throw "Control plane group '${cp.originalName}' references undefined members: ${toString undefinedMembers}"
     else if !membersCertValid then
@@ -258,11 +402,13 @@ rec {
     else if !awsTagsValid then
       throw "Control plane '${cp.originalName}' uses AWS backend but aws.tags is not defined or empty"
     else if !k8sAuthValid then
-      throw "Control plane '${cp.originalName}' with cluster_type '${clusterTypes.k8sIngress}' must have auth_type '${authTypes.pinned}' but got '${cp.auth_type}'"
+      throw "Control plane '${cp.originalName}' with cluster_type 'CLUSTER_TYPE_K8S_INGRESS_CONTROLLER' must have auth_type 'pinned_client_certs' but got '${cp.auth_type}'"
     else if !awsStorageValid then
       throw "Control plane '${cp.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
     else if !regionValid then
       throw "Control plane '${cp.originalName}' has invalid region '${cp.region}'. Allowed regions are: ${concatStringsSep ", " allowedRegions}"
+    else if !pkiBackendValid then
+      throw "Control plane '${cp.originalName}' has unsupported pki_backend '${cp.pki_backend}'. Supported backends: ${concatStringsSep ", " supportedPkiBackend}"
     else
       cp;
 
@@ -299,11 +445,11 @@ rec {
     {
       name,
       cp,
-      allControlPlaneNames,
+      allControlPlanes, # Fixed: Pass full attrset
       defaults ? config.kontfix.defaults, # Default to config but allow override
     }:
     let
-      locallyValidated = validateControlPlaneLocal { inherit name cp allControlPlaneNames; };
+      locallyValidated = validateControlPlaneLocal { inherit name cp allControlPlanes; };
     in
     validateControlPlaneWithDefaults {
       inherit name defaults;
@@ -354,27 +500,38 @@ rec {
       allControlPlaneNames = map (cp: cp.originalName) (builtins.attrValues flattenedControlPlanes);
       controlPlanesWithLabels = processControlPlanesWithLabels flattenedControlPlanes defaultLabels;
 
-      # Apply validation if requested
+      # Apply validation if requested (simple group validation first!)
       validatedControlPlanes =
         if validation then
-          mapAttrs (
-            name: cp:
-            validateControlPlane {
-              inherit
-                name
-                cp
-                allControlPlaneNames
-                defaults
-                ;
-            }
-          ) controlPlanesWithLabels
+          let
+            # First, validate that groups don't reference other groups
+            planesWithoutGroupReferences = validateNoGroupReferences controlPlanesWithLabels;
+
+            # Then apply individual control plane validation
+            individuallyValidated = mapAttrs (
+              name: cp:
+              validateControlPlane {
+                inherit name cp defaults;
+                allControlPlanes = planesWithoutGroupReferences; # Fixed: Pass full attrset
+              }
+            ) planesWithoutGroupReferences;
+          in
+          individuallyValidated
         else
           controlPlanesWithLabels;
+
+      # Tag validated control planes for O(1) filtering
+      taggedValidatedControlPlanes = tagControlPlanes validatedControlPlanes;
     in
     {
-      inherit flattenedControlPlanes validatedControlPlanes allControlPlaneNames;
+      inherit
+        flattenedControlPlanes
+        validatedControlPlanes
+        allControlPlaneNames
+        taggedValidatedControlPlanes
+        ;
     }
-    // createFilteredControlPlaneCollections validatedControlPlanes;
+    // createFilteredControlPlaneCollections taggedValidatedControlPlanes;
 
   # Helper function to convert validated groups back to groups structure for getGroupsWithStorage
   groupsFromValidated =
@@ -401,19 +558,17 @@ rec {
       defaults ? config.kontfix.defaults,
     }:
     let
-      # Process control planes
+      # Process control planes once with tagging
       processed = processControlPlanes { inherit cps defaultLabels defaults; };
 
-      # Process groups
+      # Process groups once
       groupProcessed = processGroups { inherit groups; };
     in
     processed
-    // createFilteredControlPlaneCollections processed.validatedControlPlanes
+    // createFilteredControlPlaneCollections processed.taggedValidatedControlPlanes
     // {
-      # Add group-specific fields for easy access - use validated groups
-      storageRequiredGroups = filter (
-        group: group.groupConfig.generate_token
-      ) groupProcessed.validatedGroups;
+      # Group-specific fields (computed only when accessed)
+      storageRequiredGroups = filter (group: group.groupConfig.generate_token) groupProcessed.validatedGroups;
       awsStorageGroups = getGroupsWithStorage {
         groups = groupsFromValidated groupProcessed.validatedGroups;
         backend = "aws";
@@ -553,13 +708,18 @@ rec {
         "local"
       ];
       validBackend = elem backend validBackends;
+
+      # Generic group filter (similar to makeStorageFilter but for groups)
+      groupStorageFilter =
+        group:
+        elem backend group.groupConfig.storage_backend
+        && group.groupConfig.generate_token
+        && (if backend == "aws" then (group.groupConfig.aws.enable or false) else true);
     in
     if !validBackend then
       throw "Invalid storage backend '${backend}'. Supported backends: ${concatStringsSep ", " validBackends}"
     else
-      filter (
-        group: elem backend group.groupConfig.storage_backend && group.groupConfig.generate_token
-      ) flattened;
+      filter groupStorageFilter flattened;
 
   filterStorageRequiredGroups =
     groups:

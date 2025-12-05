@@ -1,0 +1,1 @@
+Control plane group 'us-groupA' cannot reference other control plane groups: groupB. Groups may only reference individual control planes

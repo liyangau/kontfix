@@ -1,0 +1,16 @@
+{
+  "providers": [
+    {
+      "provider": "aws",
+      "alias": "au-test",
+      "profile": "${var.aws_profile}",
+      "region": "${var.aws_region}"
+    },
+    {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    }
+  ]
+}

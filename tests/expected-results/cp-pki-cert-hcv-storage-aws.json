@@ -31,7 +31,7 @@
     {
       "resource_type": "aws_secretsmanager_secret",
       "resource_name": "au-test_pki_cluster_config",
-      "name": "konnect/au-test/cluster-config",
+      "name": "konnect/au/test/cluster-config",
       "provider": "aws.au-test"
     },
     {

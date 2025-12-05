@@ -1,4 +1,3 @@
-{ config, lib, ... }:
 {
   imports = [
     ./defaults/options.nix

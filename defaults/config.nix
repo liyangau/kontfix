@@ -12,7 +12,6 @@ let
     defaults = cfg.defaults;
   };
 
-  allControlPlaneNames = processed.allControlPlaneNames;
   controlPlanesWithLabels = processed.validatedControlPlanes;
   outputEnabledControlPlanes = processed.outputEnabledControlPlanes;
   storageRequiredControlPlanes = processed.storageRequiredControlPlanes;
@@ -44,6 +43,7 @@ in
 
           # AWS variables
           awsStoragePlanes = processed.awsStorageControlPlanes;
+          awsProviderPlanes = processed.awsProviderRequiredControlPlanes;
           awsVars = mkMerge [
             (mkIf (cfg.defaults.storage.aws.region != "" && cfg.defaults.storage.aws.profile != "") {
               aws_region = {
@@ -57,6 +57,25 @@ in
                 default = cfg.defaults.storage.aws.profile;
               };
             })
+            # Also create AWS variables when AWS providers are needed for cleanup
+            (mkIf
+              (
+                awsProviderPlanes != { }
+                && (cfg.defaults.storage.aws.region == "" || cfg.defaults.storage.aws.profile == "")
+              )
+              {
+                aws_region = {
+                  type = "string";
+                  description = "AWS default region";
+                  default = cfg.defaults.storage.aws.region;
+                };
+                aws_profile = {
+                  type = "string";
+                  description = "AWS default profile";
+                  default = cfg.defaults.storage.aws.profile;
+                };
+              }
+            )
             (mkIf
               (
                 usesAWSStorageBackend

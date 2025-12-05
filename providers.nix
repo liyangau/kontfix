@@ -21,7 +21,6 @@ let
     null = "3.2.4";
   };
 
-  flattenedControlPlanes = sharedContext.flattenedControlPlanes;
   storageRequiredControlPlanes = sharedContext.storageRequiredControlPlanes;
   storageRequiredGroups = sharedContext.storageRequiredGroups;
   needsStorageResources = storageRequiredControlPlanes != { } || storageRequiredGroups != [ ];
@@ -56,6 +55,7 @@ let
 
   # Get control planes using specific storage backends
   awsStoragePlanes = sharedContext.awsStorageControlPlanes;
+  awsProviderPlanes = sharedContext.awsProviderRequiredControlPlanes;
   hcvStoragePlanes = sharedContext.hcvStorageControlPlanes;
   localStoragePlanes = sharedContext.localStorageControlPlanes;
 
@@ -73,22 +73,23 @@ let
   # null and time providers needed for any local storage usage (certificates or tokens)
   needsNullAndTimeProviders = usesLocalStorageBackend;
 
-  # Generate AWS provider configurations for each control plane using AWS storage
-  awsProviders = mkIf (awsStoragePlanes != { }) (
+  # Generate AWS provider configurations for each control plane that needs AWS providers
+  awsProviders = mkIf (awsProviderPlanes != { }) (
     attrValues (
       mapAttrs (name: cp: {
         alias = "${cp.region}-${cp.originalName}";
         profile = if cp.aws.profile != "" then cp.aws.profile else "\${var.aws_profile}";
         region = if cp.aws.region != "" then cp.aws.region else "\${var.aws_region}";
-      }) awsStoragePlanes
+      }) awsProviderPlanes
     )
   );
 
   # Get groups using AWS storage - use pre-computed!
-  awsStorageGroups = sharedContext.awsStorageGroups;
   awsGroups = filterAttrs (
     regionName: regionGroups:
-    filterAttrs (groupName: groupConfig: elem "aws" groupConfig.storage_backend) regionGroups != { }
+    filterAttrs (
+      groupName: groupConfig: elem "aws" groupConfig.storage_backend && (groupConfig.aws.enable or false)
+    ) regionGroups != { }
   ) groups;
 
   # Generate AWS provider configurations for each group using AWS storage
@@ -100,7 +101,7 @@ let
           attrValues (
             mapAttrs (
               groupName: groupConfig:
-              mkIf (elem "aws" groupConfig.storage_backend) {
+              mkIf (elem "aws" groupConfig.storage_backend && (groupConfig.aws.enable or false)) {
                 alias = "${regionName}-group-${groupName}";
                 profile = "\${var.aws_profile}";
                 region = "\${var.aws_region}";
@@ -182,13 +183,16 @@ in
           version = providerVersions.konnect;
         };
       }
-      # Conditional providers based on storage requirements
-      (mkIf (needsStorageResources && (awsStoragePlanes != { } || awsGroups != { })) {
-        aws = {
-          source = "hashicorp/aws";
-          version = providerVersions.aws;
-        };
-      })
+      # Conditional providers based on storage requirements or cleanup needs
+      (mkIf
+        (needsStorageResources && (awsStoragePlanes != { } || awsGroups != { } || awsProviderPlanes != { }))
+        {
+          aws = {
+            source = "hashicorp/aws";
+            version = providerVersions.aws;
+          };
+        }
+      )
       (mkIf (needsStorageResources && (hcvStoragePlanes != { } || hcvGroups != { })) {
         vault = {
           source = "hashicorp/vault";
@@ -235,7 +239,7 @@ in
       in
       mkMerge [
         { konnect = konnectProviders; }
-        (mkIf (needsStorageResources && awsStoragePlanes != { }) {
+        (mkIf (needsStorageResources && awsProviderPlanes != { }) {
           aws = awsProviders;
         })
         (mkIf (needsStorageResources && awsGroups != { }) {

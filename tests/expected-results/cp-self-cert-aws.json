@@ -28,7 +28,7 @@
       "tags": {
         "owner": "fomm"
       },
-      "name": "konnect/au-test/cluster-config",
+      "name": "konnect/au/test/cluster-config",
       "provider": "aws.au-test"
     },
     {
