@@ -65,6 +65,12 @@ let
         description = "Default pki backend to generate certificate for control plane using pki_client_certs auth type";
       };
 
+      store_cluster_config = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether to store cluster configuration to respective backend when certificate is not managed by Kontfix";
+      };
+
       upload_ca_certificate = mkOption {
         type = types.bool;
         default = false;

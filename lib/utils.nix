@@ -56,7 +56,8 @@ rec {
         usesLocal = elem "local" cp.storage_backend;
         awsEnabled = cp.aws.enable or false;
         isGroup = cp.cluster_type == clusterTypes.controlPlaneGroup;
-        needsStorage = createsCert || (systemAccountEnabled && systemAccountGenToken);
+        storesClusterConfig = cp.store_cluster_config or false;
+        needsStorage = createsCert || storesClusterConfig || (systemAccountEnabled && systemAccountGenToken);
       in
       cp
       // {
@@ -73,6 +74,7 @@ rec {
             awsEnabled
             isGroup
             needsStorage
+            storesClusterConfig
             ;
 
           # Combined tags for common filter patterns
@@ -80,6 +82,7 @@ rec {
           pinnedAndCert = hasPinned && createsCert;
           systemAccountWithToken = systemAccountEnabled && systemAccountGenToken;
           awsStorageEnabled = usesAws && awsEnabled;
+          clusterConfigOnly = storesClusterConfig && !createsCert;
         };
       }
     ) controlPlanes;
@@ -229,14 +232,17 @@ rec {
       awsStoragePkiCertControlPlanes = filterByTag "pkiAndCert" awsStorageControlPlanes;
       awsStoragePinnedCertControlPlanes = filterByTag "pinnedAndCert" awsStorageControlPlanes;
       awsStorageSysAccountControlPlanes = filterByTag "systemAccountWithToken" awsStorageControlPlanes;
+      awsStorageClusterConfigOnlyControlPlanes = filterByTag "clusterConfigOnly" awsStorageControlPlanes;
 
       hcvStoragePkiCertControlPlanes = filterByTag "pkiAndCert" hcvStorageControlPlanes;
       hcvStoragePinnedCertControlPlanes = filterByTag "pinnedAndCert" hcvStorageControlPlanes;
       hcvStorageSysAccountControlPlanes = filterByTag "systemAccountWithToken" hcvStorageControlPlanes;
+      hcvStorageClusterConfigOnlyControlPlanes = filterByTag "clusterConfigOnly" hcvStorageControlPlanes;
 
       localStoragePkiCertControlPlanes = filterByTag "pkiAndCert" localStorageControlPlanes;
       localStoragePinnedCertControlPlanes = filterByTag "pinnedAndCert" localStorageControlPlanes;
       localStorageSysAccountControlPlanes = filterByTag "systemAccountWithToken" localStorageControlPlanes;
+      localStorageClusterConfigOnlyControlPlanes = filterByTag "clusterConfigOnly" localStorageControlPlanes;
     in
     {
       inherit
@@ -254,12 +260,15 @@ rec {
         awsStoragePkiCertControlPlanes
         awsStoragePinnedCertControlPlanes
         awsStorageSysAccountControlPlanes
+        awsStorageClusterConfigOnlyControlPlanes
         hcvStoragePkiCertControlPlanes
         hcvStoragePinnedCertControlPlanes
         hcvStorageSysAccountControlPlanes
+        hcvStorageClusterConfigOnlyControlPlanes
         localStoragePkiCertControlPlanes
         localStoragePinnedCertControlPlanes
         localStorageSysAccountControlPlanes
+        localStorageClusterConfigOnlyControlPlanes
         ;
     };
 

@@ -14,6 +14,7 @@ let
   awsStoragePkiCertControlPlanes = sharedContext.awsStoragePkiCertControlPlanes;
   awsStoragePinnedCertControlPlanes = sharedContext.awsStoragePinnedCertControlPlanes;
   awsStorageSysAccountControlPlanes = sharedContext.awsStorageSysAccountControlPlanes;
+  awsStorageClusterConfigOnlyControlPlanes = sharedContext.awsStorageClusterConfigOnlyControlPlanes;
 in
 {
   config = mkIf (cps != { }) {
@@ -40,6 +41,17 @@ in
           tags = cp.aws.tags;
         }
       ) awsStoragePinnedCertControlPlanes)
+
+      # Cluster-config only secrets (no certificates)
+      (mapAttrs' (
+        name: cp:
+        nameValuePair "${name}_cluster_config_only" {
+          provider = "aws.${cp.region}-${cp.originalName}";
+          name = "${storageDefaults.aws.cp_prefix}/${cp.region}/${cp.originalName}/cluster-config";
+          recovery_window_in_days = 0;
+          tags = cp.aws.tags;
+        }
+      ) awsStorageClusterConfigOnlyControlPlanes)
 
       # Individual system account tokens
       (mapAttrs' (
@@ -125,6 +137,29 @@ in
           ];
         }
       ) awsStoragePinnedCertControlPlanes)
+
+      # Cluster-config only secret versions (no certificates)
+      (mapAttrs' (
+        name: cp:
+        nameValuePair "${name}_cluster_config_only_version" {
+          provider = "aws.${cp.region}-${cp.originalName}";
+          secret_id = "\${aws_secretsmanager_secret.${name}_cluster_config_only.id}";
+          secret_string = "\${jsonencode({
+          cp_id = konnect_gateway_control_plane.${name}.id
+          cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
+          telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
+          cluster_prefix = regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]
+          cluster_control_plane = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.cp.konghq.com:443\"
+          cluster_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.cp.konghq.com\"
+          cluster_telemetry_endpoint = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com:443\"
+          cluster_telemetry_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com\"
+          private_cluster_url = \"\${substr(var.aws_region, 0, 2)}.svc.konghq.com/cp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
+          private_telemetry_url = \"\${substr(var.aws_region, 0, 2)}.svc.konghq.com:443/tp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
+          private_cluster_server_name=\"\${substr(var.aws_region, 0, 2)}.svc.konghq.com\"
+          private_cluster_telemetry_server_name=\"\${substr(var.aws_region, 0, 2)}.svc.konghq.com\"
+          })}";
+        }
+      ) awsStorageClusterConfigOnlyControlPlanes)
 
       # Individual system account token versions
       (mapAttrs' (

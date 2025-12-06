@@ -4,9 +4,17 @@ let
   utils = import ../lib/utils.nix { inherit lib config; };
   cfg = config.kontfix;
 
+  # Auto-set store_cluster_config when create_certificate = true
+  controlPlanesWithAutoStoreConfig = mapAttrs (
+    region: planes:
+    mapAttrs (name: cp: cp // {
+      store_cluster_config = cp.store_cluster_config or (cp.create_certificate or false);
+    }) planes
+  ) cfg.controlPlanes;
+
   # Process everything once - control planes AND groups
   processed = utils.createSharedContext {
-    cps = cfg.controlPlanes;
+    cps = controlPlanesWithAutoStoreConfig;
     groups = cfg.groups;
     defaultLabels = cfg.defaults.controlPlanes.labels;
     defaults = cfg.defaults;

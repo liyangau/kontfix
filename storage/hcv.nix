@@ -15,6 +15,7 @@ let
   hcvStorageSysAccountControlPlanes = sharedContext.hcvStorageSysAccountControlPlanes;
   hcvStoragePinnedCertControlPlanes = sharedContext.hcvStoragePinnedCertControlPlanes;
   hcvStoragePkiCertControlPlanes = sharedContext.hcvStoragePkiCertControlPlanes;
+  hcvStorageClusterConfigOnlyControlPlanes = sharedContext.hcvStorageClusterConfigOnlyControlPlanes;
 in
 {
   config = mkIf (cps != { }) {
@@ -226,6 +227,29 @@ in
           };
         }
       ) hcvStoragePkiCertControlPlanes)
+
+      # Cluster-config only resources (no certificates)
+      (mapAttrs' (
+        name: cp:
+        nameValuePair "${name}_cluster_config_only" {
+          provider = "vault.storage";
+          mount = storageDefaults.hcv.cp_prefix;
+          name = "${cp.region}/${cp.originalName}/cluster-config";
+          data_json = "\${jsonencode({
+          cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
+          telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
+          cp_id = konnect_gateway_control_plane.${name}.id
+          cluster_prefix = regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]
+          cluster_control_plane = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.cp.konghq.com:443\"
+          cluster_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.cp.konghq.com\"
+          cluster_telemetry_endpoint = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com:443\"
+          cluster_telemetry_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com\"
+          })}";
+          custom_metadata = {
+            max_versions = 1;
+          };
+        }
+      ) hcvStorageClusterConfigOnlyControlPlanes)
     ];
   };
 }
