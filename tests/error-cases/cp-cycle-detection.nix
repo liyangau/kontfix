@@ -1,48 +1,22 @@
-{ lib, ... }:
 {
-  kontfix.controlPlanes = {
-    us = {
-      # Individual control planes
-      cp1 = {
-        cluster_type = "CLUSTER_TYPE_CONTROL_PLANE";
-        auth_type = "pinned_client_certs";
-        create_certificate = false; # Members of groups shouldn't create certificates
-        system_account.enable = false;
-        storage_backend = [ "local" ];
-      };
+  kontfix.controlPlanes.us = {
+    # Individual control planes
+    cp1 = { };
 
-      cp2 = {
-        cluster_type = "CLUSTER_TYPE_CONTROL_PLANE";
-        auth_type = "pinned_client_certs";
-        create_certificate = false; # Members of groups shouldn't create certificates
-        system_account.enable = false;
-        storage_backend = [ "local" ];
-      };
+    # First control plane group
+    groupA = {
+      cluster_type = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
+      members = [
+        "cp1"
+      ];
+    };
 
-      # Groups that reference each other creating a cycle
-      groupA = {
-        cluster_type = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
-        auth_type = "pinned_client_certs";
-        create_certificate = false;
-        system_account.enable = false;
-        storage_backend = [ "local" ];
-        members = [
-          "cp1"
-          "groupB"
-        ];
-      };
-
-      groupB = {
-        cluster_type = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
-        auth_type = "pinned_client_certs";
-        create_certificate = false;
-        system_account.enable = false;
-        storage_backend = [ "local" ];
-        members = [
-          "cp2"
-          "groupA"
-        ];
-      };
+    # Second control plane group that tries to include the first group as a member (should fail)
+    groupB = {
+      cluster_type = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
+      members = [
+        "groupA" # This should cause validation error - groups cannot be members of other groups
+      ];
     };
   };
 }

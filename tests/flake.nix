@@ -207,8 +207,8 @@
           );
         };
 
-      # Create a test-all app that builds all, then tests all sequentially
-      createTestAllApp =
+      # Create a test-all-builds app that builds and tests regular configurations
+      createTestAllBuildsApp =
         { pkgs, system }:
         let
           # Python validator script with enhanced dependencies (no linting)
@@ -226,7 +226,7 @@
         {
           type = "app";
           program = toString (
-            pkgs.writers.writeBash "test-all" ''
+            pkgs.writers.writeBash "test-all-builds" ''
               echo "🚀 Building all test configurations..."
 
               # Build all configurations sequentially
@@ -248,7 +248,7 @@
               for config in ${nixpkgs.lib.concatStringsSep " " testConfigurations}; do
                 echo ""
                 echo "🧪 Testing $config..."
-                
+
                 # Check if required files exist
                 if [[ ! -f "$config.tf.json" ]]; then
                   echo "❌ $config.tf.json not found."
@@ -279,6 +279,205 @@
                 echo "💥 Some tests failed!"
                 exit 1
               fi
+            ''
+          );
+        };
+
+      # Create a test-all-errors app that tests all error case configurations sequentially
+      createTestAllErrorsApp =
+        { pkgs, system }:
+        {
+          type = "app";
+          program = toString (
+            pkgs.writers.writeBash "test-all-errors" ''
+              echo "🚀 Testing all error case configurations..."
+
+              if [[ -z "${nixpkgs.lib.concatStringsSep " " errorTestConfigurations}" ]]; then
+                echo "✅ No error cases to test"
+                exit 0
+              fi
+
+              # Test all error case configurations sequentially
+              TEST_FAILED=0
+              for config in ${nixpkgs.lib.concatStringsSep " " errorTestConfigurations}; do
+                echo ""
+                echo "🧪 Testing error case: $config..."
+
+                # Check if expected error file exists
+                if [[ ! -f "./expected-errors/$config.txt" ]]; then
+                  echo "❌ ./expected-errors/$config.txt not found."
+                  TEST_FAILED=1
+                  continue
+                fi
+
+                expected_error=$(cat "./expected-errors/$config.txt")
+
+                # Try to build (should fail)
+                echo "🔨 Attempting to build $config (expecting failure)..."
+                build_output=$(nix run .#build-error-$config 2>&1 || true)
+
+                # Check if build actually failed
+                if nix run .#build-error-$config 2>/dev/null; then
+                  echo "❌ Build succeeded but should have failed!"
+                  TEST_FAILED=1
+                  continue
+                fi
+
+                # Check if error message contains expected text
+                if echo "$build_output" | grep -qF "$expected_error"; then
+                  echo "✅ $config error test passed"
+                else
+                  echo "❌ $config error test failed"
+                  echo "   Expected error: $expected_error"
+                  echo "   Actual output:"
+                  echo "$build_output"
+                  TEST_FAILED=1
+                fi
+              done
+
+              echo ""
+              if [[ $TEST_FAILED -eq 0 ]]; then
+                echo "🎉 All error case tests passed!"
+                exit 0
+              else
+                echo "💥 Some error case tests failed!"
+                exit 1
+              fi
+            ''
+          );
+        };
+
+      # Create a comprehensive test-all app that runs both regular tests and error case tests
+      createTestAllApp =
+        { pkgs, system }:
+        let
+          # Python validator script with enhanced dependencies (no linting)
+          pythonWithDeps = pkgs.python3.withPackages (
+            ps: with ps; [
+              deepdiff
+              colorama
+            ]
+          );
+          validator = pkgs.writeScriptBin "validator" ''
+            #!${pythonWithDeps}/bin/python3
+            ${builtins.readFile ./validators/main.py}
+          '';
+        in
+        {
+          type = "app";
+          program = toString (
+            pkgs.writers.writeBash "test-all" ''
+              echo "🚀 Running comprehensive test suite..."
+
+              echo ""
+              echo "📋 Part 1: Building and testing regular configurations..."
+
+              # Build all regular configurations sequentially
+              for config in ${nixpkgs.lib.concatStringsSep " " testConfigurations}; do
+                echo "🔨 Building $config..."
+                if ! nix run .#build-$config; then
+                  echo "❌ Build failed for $config"
+                  exit 1
+                fi
+              done
+
+              echo ""
+              echo "✅ All regular builds completed"
+
+              # Run regular tests with Python validator (direct call for performance)
+              if [[ ! -f "./validators/main.py" ]]; then
+                echo "❌ ./validators/main.py not found, skipping regular tests"
+              else
+                echo ""
+                echo "🧪 Running regular tests..."
+
+                TEST_FAILED=0
+                for config in ${nixpkgs.lib.concatStringsSep " " testConfigurations}; do
+                  echo ""
+                  echo "🧪 Testing $config..."
+
+                  # Check if required files exist
+                  if [[ ! -f "$config.tf.json" ]]; then
+                    echo "❌ $config.tf.json not found."
+                    TEST_FAILED=1
+                    continue
+                  fi
+
+                  if [[ ! -f "./expected-results/$config.json" ]]; then
+                    echo "⚠️  ./expected-results/$config.json not found, skipping validation for $config"
+                    continue
+                  fi
+
+                  # Run the Python validator directly (fast approach)
+                  if ${validator}/bin/validator "$config" --test-dir .; then
+                    echo "✅ $config test passed"
+                  else
+                    echo "❌ $config test failed"
+                    TEST_FAILED=1
+                  fi
+                done
+
+                if [[ $TEST_FAILED -ne 0 ]]; then
+                  echo ""
+                  echo "💥 Some regular tests failed!"
+                  exit 1
+                fi
+              fi
+
+              echo ""
+              echo "📋 Part 2: Testing error case configurations..."
+
+              if [[ -z "${nixpkgs.lib.concatStringsSep " " errorTestConfigurations}" ]]; then
+                echo "✅ No error cases to test"
+              else
+                # Test all error case configurations (optimized approach)
+                ERROR_TEST_FAILED=0
+                for config in ${nixpkgs.lib.concatStringsSep " " errorTestConfigurations}; do
+                  echo ""
+                  echo "🧪 Testing error case: $config..."
+
+                  # Check if expected error file exists
+                  if [[ ! -f "./expected-errors/$config.txt" ]]; then
+                    echo "❌ ./expected-errors/$config.txt not found."
+                    ERROR_TEST_FAILED=1
+                    continue
+                  fi
+
+                  expected_error=$(cat "./expected-errors/$config.txt")
+
+                  # Try to build (should fail)
+                  echo "🔨 Attempting to build $config (expecting failure)..."
+                  build_output=$(nix run .#build-error-$config 2>&1 || true)
+
+                  # Check if build actually failed
+                  if nix run .#build-error-$config 2>/dev/null; then
+                    echo "❌ Build succeeded but should have failed!"
+                    ERROR_TEST_FAILED=1
+                    continue
+                  fi
+
+                  # Check if error message contains expected text
+                  if echo "$build_output" | grep -qF "$expected_error"; then
+                    echo "✅ $config error test passed"
+                  else
+                    echo "❌ $config error test failed"
+                    echo "   Expected error: $expected_error"
+                    echo "   Actual output:"
+                    echo "$build_output"
+                    ERROR_TEST_FAILED=1
+                  fi
+                done
+
+                if [[ $ERROR_TEST_FAILED -ne 0 ]]; then
+                  echo ""
+                  echo "💥 Some error case tests failed!"
+                  exit 1
+                fi
+              fi
+
+              echo ""
+              echo "🎉 All tests passed! (Regular + Error Cases)"
+              exit 0
             ''
           );
         };
@@ -325,6 +524,9 @@
               value = createTestApp { inherit pkgs system configName; };
             }) testConfigurations
           );
+          testAllBuildsApp = {
+            test-all-builds = createTestAllBuildsApp { inherit pkgs system; };
+          };
           testAllApp = {
             test-all = createTestAllApp { inherit pkgs system; };
           };
@@ -342,8 +544,13 @@
               value = createErrorTestApp { inherit pkgs system configName; };
             }) errorTestConfigurations
           );
+
+          # Error test app
+          testAllErrorsApp = {
+            test-all-errors = createTestAllErrorsApp { inherit pkgs system; };
+          };
         in
-        individualApps // buildAllApp // testApps // testAllApp // errorBuildApps // errorTestApps;
+        individualApps // buildAllApp // testApps // testAllBuildsApp // testAllApp // errorBuildApps // errorTestApps // testAllErrorsApp;
     in
     {
       apps = forEachSystem ({ system, pkgs }: generateBuildApps { inherit pkgs system; });

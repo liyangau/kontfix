@@ -1,0 +1,1 @@
+Control plane group 'groupA' member cp1 has create_certificate = true

@@ -330,7 +330,7 @@ rec {
         firstError = head invalidReferences;
         membersList = concatStringsSep ", " firstError.invalidMembers;
       in
-      throw "Control plane group '${firstError.name}' cannot reference other control plane groups: ${membersList}. Groups may only reference individual control planes."
+      throw "Control plane group '${firstError.name}' can not have control plane groups '${membersList}' as its member. Groups members can only be individual control planes."
     else
       allControlPlanes;
 
@@ -358,7 +358,7 @@ rec {
       undefinedMembers = filter (member: !(elem member allControlPlaneNames)) cp.members;
       membersDefined = undefinedMembers == [ ];
 
-      # Validation 3: Members of control plane groups must not have create_certificates = true
+      # Validation 3: Members of control plane groups must not have create_certificates = true or store_cluster_config = true
       # Helper to find a control plane by original name
       findByOriginalName =
         originalName:
@@ -371,6 +371,11 @@ rec {
         member: (findByOriginalName member).create_certificate or false
       ) cp.members;
       membersCertValid = invalidCertMembers == [ ];
+
+      invalidStoreConfigMembers = filter (
+        member: (findByOriginalName member).store_cluster_config or false
+      ) cp.members;
+      membersStoreConfigValid = invalidStoreConfigMembers == [ ];
 
       # Validation 4: CLUSTER_TYPE_CONTROL_PLANE_GROUP must have system_account.enable = false
       groupSystemAccountValid = !isGroup || !(cp.system_account.enable or false);
@@ -404,6 +409,8 @@ rec {
       throw "Control plane group '${cp.originalName}' references undefined members: ${toString undefinedMembers}"
     else if !membersCertValid then
       throw "Control plane group '${cp.originalName}' member ${toString invalidCertMembers} has create_certificate = true"
+    else if !membersStoreConfigValid then
+      throw "Control plane group '${cp.originalName}' member ${toString invalidStoreConfigMembers} has store_cluster_config = true"
     else if !groupSystemAccountValid then
       throw "Control plane group '${cp.originalName}' cannot have system_account.enable = true"
     else if !groupPluginsValid then
