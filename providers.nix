@@ -122,8 +122,8 @@ let
   # Get groups using local storage
   localStorageGroups = sharedContext.localStorageGroups;
 
-  # Generate Vault provider configuration based on auth method
-  vaultPkiProvider = mkIf (hcvPkiPlanes != { } && pkiConfig.hcv.address != "") (
+  # Generate Vault PKI provider if session is configured in defaults.pki.hcv
+  vaultPkiProvider = mkIf (pkiConfig.hcv.address != "") (
     if pkiConfig.hcv.auth_method == "token" then
       {
         alias = "pki";
@@ -146,31 +146,29 @@ let
       { }
   );
 
-  # Generate Vault provider configuration based on auth method
-  vaultStorageProvider =
-    mkIf ((hcvStoragePlanes != { } || hcvGroups != { }) && storageConfig.hcv.address != "")
-      (
-        if storageConfig.hcv.auth_method == "token" then
-          {
-            alias = "storage";
-            address = storageConfig.hcv.address;
-            token = "\${var.vault_token}";
-          }
-        else if storageConfig.hcv.auth_method == "approle" then
-          {
-            alias = "storage";
-            address = storageConfig.hcv.address;
-            auth_login = {
-              path = storageConfig.hcv.auth_path;
-              parameters = {
-                role_id = "\${var.vault_role_id}";
-                secret_id = "\${var.vault_secret_id}";
-              };
-            };
-          }
-        else
-          { }
-      );
+  # Generate Vault storage provider if session is configured in defaults.storage.hcv
+  vaultStorageProvider = mkIf (storageConfig.hcv.address != "") (
+    if storageConfig.hcv.auth_method == "token" then
+      {
+        alias = "storage";
+        address = storageConfig.hcv.address;
+        token = "\${var.vault_token}";
+      }
+    else if storageConfig.hcv.auth_method == "approle" then
+      {
+        alias = "storage";
+        address = storageConfig.hcv.address;
+        auth_login = {
+          path = storageConfig.hcv.auth_path;
+          parameters = {
+            role_id = "\${var.vault_role_id}";
+            secret_id = "\${var.vault_secret_id}";
+          };
+        };
+      }
+    else
+      { }
+  );
 in
 {
   config = mkIf (cps != { }) {
@@ -193,7 +191,8 @@ in
           };
         }
       )
-      (mkIf (needsStorageResources && (hcvStoragePlanes != { } || hcvGroups != { })) {
+      # Vault providers are now based on defaults configuration, not usage
+      (mkIf (storageConfig.hcv.address != "" || pkiConfig.hcv.address != "") {
         vault = {
           source = "hashicorp/vault";
           version = providerVersions.vault;
@@ -227,15 +226,10 @@ in
     # Control plane-specific providers
     provider =
       let
-        # Collect all Vault providers that need to be configured
+        # Collect all Vault providers that need to be configured based on defaults configuration
         vaultProviders =
-          (
-            if (needsStorageResources && hcvStoragePlanes != { } && storageConfig.hcv.address != "") then
-              [ vaultStorageProvider ]
-            else
-              [ ]
-          )
-          ++ (if (hcvPkiPlanes != { } && pkiConfig.hcv.address != "") then [ vaultPkiProvider ] else [ ]);
+          (if (storageConfig.hcv.address != "") then [ vaultStorageProvider ] else [ ])
+          ++ (if (pkiConfig.hcv.address != "") then [ vaultPkiProvider ] else [ ]);
       in
       mkMerge [
         { konnect = konnectProviders; }

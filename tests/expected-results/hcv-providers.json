@@ -1,0 +1,22 @@
+{
+  "providers": [
+    {
+      "provider": "vault",
+      "address": "https://vault.example.com",
+      "alias": "pki",
+      "auth_login": {
+        "parameters": {
+          "role_id": "${var.vault_pki_role_id}",
+          "secret_id": "${var.vault_pki_secret_id}"
+        },
+        "path": "auth/pki/login"
+      }
+    },
+    {
+      "provider": "vault",
+      "address": "https://vault.example.com",
+      "alias": "storage",
+      "token": "${var.vault_token}"
+    }
+  ]
+}
