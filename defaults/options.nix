@@ -81,12 +81,21 @@ with lib;
       };
       controlPlanes = {
         auth_type = mkOption {
-          type = types.str;
+          type = types.enum [
+            "pki_client_certs"
+            "pinned_client_certs"
+          ];
           default = "pinned_client_certs";
           description = "Default authentication type for control planes";
         };
         storage_backend = mkOption {
-          type = types.listOf types.str;
+          type = types.listOf (
+            types.enum [
+              "local"
+              "hcv"
+              "aws"
+            ]
+          );
           default = [ "local" ];
           description = "Default storage backend options for control planes";
         };
@@ -96,7 +105,7 @@ with lib;
           description = "Default labels applied to all control planes";
         };
         pki_backend = mkOption {
-          type = types.str;
+          type = types.enum [ "hcv" ];
           default = "hcv";
           description = "Default pki backend to generate certificate for control planes using pki_client_certs auth type";
         };
@@ -155,6 +164,43 @@ with lib;
           type = types.int;
           default = 7;
           description = "Number of days before token expiry to trigger renewal. Default is 7 days before expiry.";
+        };
+      };
+      provider_versions = {
+        konnect = mkOption {
+          type = types.str;
+          default = "3.3.0";
+          description = "Version of the Kong Konnect provider";
+        };
+        tls = mkOption {
+          type = types.str;
+          default = "4.1.0";
+          description = "Version of the HashiCorp TLS provider";
+        };
+        time = mkOption {
+          type = types.str;
+          default = "0.13.1";
+          description = "Version of the HashiCorp Time provider";
+        };
+        aws = mkOption {
+          type = types.str;
+          default = "6.17.0";
+          description = "Version of the HashiCorp AWS provider";
+        };
+        vault = mkOption {
+          type = types.str;
+          default = "5.3.0";
+          description = "Version of the HashiCorp Vault provider";
+        };
+        local = mkOption {
+          type = types.str;
+          default = "2.5.3";
+          description = "Version of the HashiCorp Local provider";
+        };
+        null = mkOption {
+          type = types.str;
+          default = "3.2.4";
+          description = "Version of the HashiCorp Null provider";
         };
       };
     };

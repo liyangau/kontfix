@@ -11,11 +11,10 @@ let
   cps = config.kontfix.controlPlanes;
   pkiCaCertConfig = config.kontfix.defaults.pki_ca_certificate;
   vaultPkiConfig = config.kontfix.defaults.vault_pki;
-  pkiCertControlPlanes = sharedContext.pkiCertControlPlanes;
-  hcvPkiPlanes = filterAttrs (
-    name: cp: cp.create_certificate or false && cp.pki_backend == "hcv"
-  ) pkiCertControlPlanes;
-  pkiCreateCertControlPlanes = filterAttrs (name: cp: cp.create_certificate or true) hcvPkiPlanes;
+  # Use pre-computed collection from sharedContext
+  hcvPkiPlanes = sharedContext.hcvPkiCertControlPlanes;
+  # hcvPkiPlanes already has create_certificate = true, so pkiCreateCertControlPlanes is just hcvPkiPlanes
+  pkiCreateCertControlPlanes = hcvPkiPlanes;
   pkiUploadCertControlPlanes = filterAttrs (name: cp: cp.upload_ca_certificate or true) hcvPkiPlanes;
   getEffectiveCaCertificate =
     cp:

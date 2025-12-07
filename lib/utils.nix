@@ -34,6 +34,13 @@ rec {
     "in"
   ];
 
+  # Supported storage backends
+  supportedStorageBackends = [
+    "hcv"
+    "aws"
+    "local"
+  ];
+
   # ============================================================================
   # Helper Functions
   # ============================================================================
@@ -54,10 +61,12 @@ rec {
         usesHcv = elem "hcv" cp.storage_backend;
         usesAws = elem "aws" cp.storage_backend;
         usesLocal = elem "local" cp.storage_backend;
+        usesHcvPki = (cp.pki_backend or "") == "hcv";
         awsEnabled = cp.aws.enable or false;
         isGroup = cp.cluster_type == clusterTypes.controlPlaneGroup;
         storesClusterConfig = cp.store_cluster_config or false;
-        needsStorage = createsCert || storesClusterConfig || (systemAccountEnabled && systemAccountGenToken);
+        needsStorage =
+          createsCert || storesClusterConfig || (systemAccountEnabled && systemAccountGenToken);
       in
       cp
       // {
@@ -71,6 +80,7 @@ rec {
             usesHcv
             usesAws
             usesLocal
+            usesHcvPki
             awsEnabled
             isGroup
             needsStorage
@@ -83,6 +93,8 @@ rec {
           systemAccountWithToken = systemAccountEnabled && systemAccountGenToken;
           awsStorageEnabled = usesAws && awsEnabled;
           clusterConfigOnly = storesClusterConfig && !createsCert;
+          # PKI control planes that create certs using HCV PKI backend
+          hcvPkiAndCert = hasPki && usesHcvPki && createsCert;
         };
       }
     ) controlPlanes;
@@ -122,75 +134,6 @@ rec {
   processControlPlanesWithLabels =
     cps: defaultLabels: mapAttrs (name: cp: addLabels cp defaultLabels) cps;
 
-  # Filter control planes by certificate type
-  filterByCertType =
-    { controlPlanes, certType }:
-    filterAttrs (name: cp: cp.create_certificate && cp.auth_type == certType) controlPlanes;
-
-  # Filter control planes with individual system accounts
-  filterIndividualSystemAccountPlanes =
-    controlPlanes: filterAttrs (name: cp: cp.system_account.enable or false) controlPlanes;
-
-  # Filter control planes with system account token generation enabled
-  filterSystemAccountTokenPlanes =
-    controlPlanes:
-    filterAttrs (
-      name: cp: cp.system_account.enable or false && cp.system_account.generate_token or false
-    ) controlPlanes;
-
-  # Filter control planes that require storage (certificate creation OR system account token generation)
-  filterStorageRequiredControlPlanes =
-    controlPlanes:
-    filterAttrs (
-      name: cp:
-      cp.create_certificate or false
-      || (cp.system_account.enable or false && cp.system_account.generate_token or false)
-    ) controlPlanes;
-
-  # Generic filter builder for storage backends with optional enabled flag
-  makeStorageFilter =
-    {
-      backend,
-      requireEnabled ? false,
-      requireStorage ? true,
-    }:
-    filterAttrs (
-      name: cp:
-      (if requireStorage then elem backend cp.storage_backend else true)
-      && (if requireEnabled then (cp.${backend}.enable or false) else true)
-    );
-
-  # Filter control planes by storage backend
-  filterByStorageBackend =
-    { controlPlanes, backend }: makeStorageFilter { inherit backend; } controlPlanes;
-
-  # Filter control planes by AWS storage backend AND aws.enable = true
-  filterByAwsStorageWithEnabledFlag = makeStorageFilter {
-    backend = "aws";
-    requireEnabled = true;
-  };
-
-  # Filter control planes that need AWS providers (either use AWS storage OR have aws.enable = true)
-  filterByAwsProviderRequired = filterAttrs (
-    name: cp: elem "aws" cp.storage_backend || (cp.aws.enable or false)
-  );
-
-  # Generic filter combinator to reduce duplication
-  combineFilters = filters: controlPlanes: foldl' (acc: filter: filter acc) controlPlanes filters;
-
-  # Helper to create storage + cert type filters
-  createStorageCertFilters = storageBackend: controlPlanes: {
-    pkiCert = filterByCertType {
-      controlPlanes = storageBackend;
-      certType = authTypes.pki;
-    };
-    pinnedCert = filterByCertType {
-      controlPlanes = storageBackend;
-      certType = authTypes.pinned;
-    };
-    sysAccount = filterSystemAccountTokenPlanes storageBackend;
-  };
-
   # Create all filtered collections for control planes using tagged approach (O(1) lookups)
   createFilteredControlPlaneCollections =
     taggedValidatedControlPlanes:
@@ -228,6 +171,9 @@ rec {
       awsEnabledControlPlanes = filterByTag "awsEnabled" taggedValidatedControlPlanes;
       awsEnabledWithStorage = filterByTag "awsStorageEnabled" taggedValidatedControlPlanes;
 
+      # HCV PKI backend filter (control planes that create certs with HCV PKI)
+      hcvPkiCertControlPlanes = filterByTag "hcvPkiAndCert" taggedValidatedControlPlanes;
+
       # Combined storage + cert type filters (still O(1) - just chaining O(1) operations)
       awsStoragePkiCertControlPlanes = filterByTag "pkiAndCert" awsStorageControlPlanes;
       awsStoragePinnedCertControlPlanes = filterByTag "pinnedAndCert" awsStorageControlPlanes;
@@ -261,6 +207,7 @@ rec {
         awsStoragePinnedCertControlPlanes
         awsStorageSysAccountControlPlanes
         awsStorageClusterConfigOnlyControlPlanes
+        hcvPkiCertControlPlanes
         hcvStoragePkiCertControlPlanes
         hcvStoragePinnedCertControlPlanes
         hcvStorageSysAccountControlPlanes
@@ -438,8 +385,9 @@ rec {
     let
       # Validation 11: Control planes that need storage and use HCV backend must have storage.hcv.address configured
       needsStorage =
-        cp.create_certificate or false
-        || (cp.system_account.enable or false && cp.system_account.generate_token or false);
+        (cp.create_certificate or false)
+        || (cp.store_cluster_config or false)
+        || ((cp.system_account.enable or false) && (cp.system_account.generate_token or false));
       usesHcvStorage = needsStorage && elem "hcv" cp.storage_backend;
       hcvStorageAddressValid = !usesHcvStorage || (defaults.storage.hcv.address or "") != "";
 
@@ -584,7 +532,9 @@ rec {
     // createFilteredControlPlaneCollections processed.taggedValidatedControlPlanes
     // {
       # Group-specific fields (computed only when accessed)
-      storageRequiredGroups = filter (group: group.groupConfig.generate_token) groupProcessed.validatedGroups;
+      storageRequiredGroups = filter (
+        group: group.groupConfig.generate_token
+      ) groupProcessed.validatedGroups;
       awsStorageGroups = getGroupsWithStorage {
         groups = groupsFromValidated groupProcessed.validatedGroups;
         backend = "aws";
@@ -619,15 +569,8 @@ rec {
 
   getStorageControlPlanesFromContext =
     { context, backend }:
-    let
-      validBackends = [
-        "hcv"
-        "aws"
-        "local"
-      ];
-    in
-    if !(elem backend validBackends) then
-      throw "Invalid storage backend '${backend}'. Supported backends: ${concatStringsSep ", " validBackends}"
+    if !(elem backend supportedStorageBackends) then
+      throw "Invalid storage backend '${backend}'. Supported backends: ${concatStringsSep ", " supportedStorageBackends}"
     else if backend == "hcv" then
       context.hcvStorageControlPlanes
     else if backend == "aws" then
@@ -638,27 +581,6 @@ rec {
       throw "Unexpected error with backend: ${backend}";
 
   getSystemAccountControlPlanesFromContext = context: context.individualSystemAccountPlanes;
-
-  # DEPRECATED: Old functions that re-process (kept for backwards compatibility)
-  # These should eventually be removed in favor of the *FromContext versions
-  getControlPlanes = cps: (createSharedContext { inherit cps; }).validatedControlPlanes;
-
-  getCertificateControlPlanes =
-    { cps, authType }:
-    getCertificateControlPlanesFromContext {
-      context = createSharedContext { inherit cps; };
-      inherit authType;
-    };
-
-  getStorageControlPlanes =
-    { cps, backend }:
-    getStorageControlPlanesFromContext {
-      context = createSharedContext { inherit cps; };
-      inherit backend;
-    };
-
-  getSystemAccountControlPlanes =
-    cps: (createSharedContext { inherit cps; }).individualSystemAccountPlanes;
 
   # ============================================================================
   # Group Processing
@@ -718,12 +640,6 @@ rec {
     { groups, backend }:
     let
       flattened = flattenGroups groups;
-      validBackends = [
-        "hcv"
-        "aws"
-        "local"
-      ];
-      validBackend = elem backend validBackends;
 
       # Generic group filter (similar to makeStorageFilter but for groups)
       groupStorageFilter =
@@ -732,8 +648,8 @@ rec {
         && group.groupConfig.generate_token
         && (if backend == "aws" then (group.groupConfig.aws.enable or false) else true);
     in
-    if !validBackend then
-      throw "Invalid storage backend '${backend}'. Supported backends: ${concatStringsSep ", " validBackends}"
+    if !(elem backend supportedStorageBackends) then
+      throw "Invalid storage backend '${backend}'. Supported backends: ${concatStringsSep ", " supportedStorageBackends}"
     else
       filter groupStorageFilter flattened;
 
@@ -754,8 +670,8 @@ rec {
       # Get all control plane names by region
       controlPlanesByRegion = mapAttrs (region: cps: attrNames cps) controlPlanes;
 
-      # Validate each group
-      validateGroup =
+      # Validate each group's member references
+      validateGroupMembers =
         region: groupName: group:
         let
           availableControlPlanes = controlPlanesByRegion.${region} or [ ];
@@ -768,7 +684,8 @@ rec {
 
       # Validate all groups in all regions
       validateAllGroups = mapAttrs (
-        region: regionGroups: mapAttrs (groupName: group: validateGroup region groupName group) regionGroups
+        region: regionGroups:
+        mapAttrs (groupName: group: validateGroupMembers region groupName group) regionGroups
       ) groups;
     in
     validateAllGroups;

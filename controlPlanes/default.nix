@@ -30,7 +30,10 @@ let
       };
 
       auth_type = mkOption {
-        type = types.str;
+        type = types.enum [
+          "pki_client_certs"
+          "pinned_client_certs"
+        ];
         default = cfg.defaults.controlPlanes.auth_type;
         description = "Authentication type for the control plane";
       };
@@ -60,9 +63,9 @@ let
       };
 
       pki_backend = mkOption {
-        type = types.str;
+        type = types.enum [ "hcv" ];
         default = cfg.defaults.controlPlanes.pki_backend;
-        description = "Default pki backend to generate certificate for control plane using pki_client_certs auth type";
+        description = "PKI backend to generate certificate for control plane using pki_client_certs auth type";
       };
 
       store_cluster_config = mkOption {
@@ -109,7 +112,13 @@ let
       };
 
       storage_backend = mkOption {
-        type = types.listOf types.str;
+        type = types.listOf (
+          types.enum [
+            "local"
+            "hcv"
+            "aws"
+          ]
+        );
         default = cfg.defaults.controlPlanes.storage_backend;
         description = "Storage backend options";
       };

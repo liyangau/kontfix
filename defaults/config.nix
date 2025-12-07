@@ -7,9 +7,13 @@ let
   # Auto-set store_cluster_config when create_certificate = true
   controlPlanesWithAutoStoreConfig = mapAttrs (
     region: planes:
-    mapAttrs (name: cp: cp // {
-      store_cluster_config = cp.store_cluster_config or (cp.create_certificate or false);
-    }) planes
+    mapAttrs (
+      name: cp:
+      cp
+      // {
+        store_cluster_config = cp.store_cluster_config or (cp.create_certificate or false);
+      }
+    ) planes
   ) cfg.controlPlanes;
 
   # Process everything once - control planes AND groups
@@ -104,10 +108,8 @@ in
 
           # HCV storage variables
           hcvStoragePlanes = processed.hcvStorageControlPlanes;
-          # HCV PKI control planes
-          hcvPkiPlanes = filterAttrs (
-            name: cp: cp.create_certificate or false && cp.pki_backend == "hcv"
-          ) processed.pkiCertControlPlanes;
+          # HCV PKI control planes (use pre-computed collection)
+          hcvPkiPlanes = processed.hcvPkiCertControlPlanes;
 
           hcvVars = mkIf (hcvStoragePlanes != { } && cfg.defaults.storage.hcv.address != "") {
             vault_token = mkIf (cfg.defaults.storage.hcv.auth_method == "token") {
