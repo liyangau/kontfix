@@ -53,19 +53,19 @@ let
       members = mkOption {
         type = types.listOf types.str;
         default = [ ];
-        description = "List of member control plane names";
+        description = "List of member control plane names. Only used when the control plane _cluster_type_ is **CLUSTER_TYPE_CONTROL_PLANE_GROUP**.";
       };
 
       create_certificate = mkOption {
         type = types.bool;
         default = false;
-        description = "Whether to create and manage certificates";
+        description = "Whether to use Kontfix to create and manage certificates";
       };
 
       pki_backend = mkOption {
         type = types.enum [ "hcv" ];
         default = cfg.defaults.controlPlanes.pki_backend;
-        description = "PKI backend to generate certificate for control plane using pki_client_certs auth type";
+        description = "PKI backend used to generate certificate for control plane using **pki_client_certs** auth type";
       };
 
       store_cluster_config = mkOption {
@@ -129,22 +129,22 @@ let
             enable = mkOption {
               type = types.bool;
               default = false;
-              description = "Whether to enable AWS provider (required for AWS resources even when not using AWS storage)";
+              description = "Whether to enable AWS provider. Enable this option to have the aws provider generated for this control plane.";
             };
             profile = mkOption {
               type = types.str;
               default = "";
-              description = "AWS profile name to use (default: empty string, will use default AWS credentials chain)";
+              description = "AWS profile name to use";
             };
             region = mkOption {
               type = types.str;
               default = "";
-              description = "AWS region for resources (default: empty string, will use environment or AWS config)";
+              description = "AWS region for resources";
             };
             tags = mkOption {
               type = types.attrsOf types.str;
               default = { };
-              description = "AWS tags to apply when using AWS storage backend";
+              description = "AWS tags to apply when using AWS storage backend. Mandatory for using aws backend.";
             };
           };
         };

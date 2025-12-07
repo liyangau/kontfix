@@ -5,7 +5,7 @@ let
     options = {
       members = mkOption {
         type = types.listOf types.str;
-        description = "List of control plane names to include in this group";
+        description = "List of control plane names to be included in this group";
       };
 
       generate_token = mkOption {

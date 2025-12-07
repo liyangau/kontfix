@@ -8,12 +8,12 @@ with lib;
           cp_prefix = mkOption {
             type = types.str;
             default = "konnect";
-            description = "Default prefix for AWS Secrets Manager paths for individual control planes";
+            description = "Default prefix for AWS Secrets Manager secret paths for individual control planes";
           };
           group_prefix = mkOption {
             type = types.str;
             default = "konnect";
-            description = "Default prefix for AWS Secrets Manager paths for group system accounts";
+            description = "Default prefix for AWS Secrets Manager secret paths for group system accounts";
           };
           region = mkOption {
             type = types.str;
@@ -30,12 +30,12 @@ with lib;
           cp_prefix = mkOption {
             type = types.str;
             default = "konnect";
-            description = "Default mount and path prefix for HashiCorp Vault storage for individual control planes";
+            description = "Default mount point for HashiCorp Vault storage for individual control planes";
           };
           group_prefix = mkOption {
             type = types.str;
             default = "konnect";
-            description = "Default mount and path prefix for HashiCorp Vault storage for group system accounts";
+            description = "Default mount point for HashiCorp Vault storage for group system accounts";
           };
           address = mkOption {
             type = types.str;
@@ -48,7 +48,10 @@ with lib;
               "approle"
             ];
             default = "token";
-            description = "Vault authentication method";
+            description = ''
+              Vault authentication for storage handling:
+              When the _approle_ method is used, the module injects `vault_role_id` and `vault_secret_id` into the provider configuration. When the _token_ method is used, the module instead use `vault_token` variable.
+            '';
           };
           auth_path = mkOption {
             type = types.str;
@@ -70,7 +73,10 @@ with lib;
               "approle"
             ];
             default = "token";
-            description = "Vault authentication method";
+            description = ''
+              Vault authentication for PKI handling:
+              When the _approle_ method is used, the module injects `vault_pki_role_id` and `vault_pki_secret_id` into the provider configuration. When the _token_ method is used, the module instead use `vault_pki_token` variable.
+            '';
           };
           auth_path = mkOption {
             type = types.str;
