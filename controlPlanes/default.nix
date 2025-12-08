@@ -9,150 +9,157 @@ with lib;
 let
   cfg = config.kontfix;
 
-  controlPlaneSubmodule = types.submodule {
-    options = {
-      name = mkOption {
-        type = types.nullOr types.str;
-        default = null;
-        description = "Name of the control plane (if not provided, the key will be used)";
-      };
+  controlPlaneSubmodule = types.submodule (
+    { config, ... }:
+    {
+      options = {
+        name = mkOption {
+          type = types.nullOr types.str;
+          default = null;
+          description = "Name of the control plane (if not provided, the key will be used)";
+        };
 
-      output = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Whether to output the control plane details";
-      };
+        output = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether to output the control plane details";
+        };
 
-      cluster_type = mkOption {
-        type = types.str;
-        default = "CLUSTER_TYPE_CONTROL_PLANE";
-        description = "Type of the control plane";
-      };
+        cluster_type = mkOption {
+          type = types.str;
+          default = "CLUSTER_TYPE_CONTROL_PLANE";
+          description = "Type of the control plane";
+        };
 
-      auth_type = mkOption {
-        type = types.enum [
-          "pki_client_certs"
-          "pinned_client_certs"
-        ];
-        default = cfg.defaults.controlPlanes.auth_type;
-        description = "Authentication type for the control plane";
-      };
+        auth_type = mkOption {
+          type = types.enum [
+            "pki_client_certs"
+            "pinned_client_certs"
+          ];
+          default = cfg.defaults.controlPlanes.auth_type;
+          description = "Authentication type for the control plane";
+        };
 
-      description = mkOption {
-        type = types.str;
-        default = "";
-        description = "Description of the control plane";
-      };
+        description = mkOption {
+          type = types.str;
+          default = "";
+          description = "Description of the control plane";
+        };
 
-      labels = mkOption {
-        type = types.attrsOf types.str;
-        default = { };
-        description = "Labels for the control plane";
-      };
+        labels = mkOption {
+          type = types.attrsOf types.str;
+          default = { };
+          description = "Labels for the control plane";
+        };
 
-      members = mkOption {
-        type = types.listOf types.str;
-        default = [ ];
-        description = "List of member control plane names. Only used when the control plane _cluster_type_ is **CLUSTER_TYPE_CONTROL_PLANE_GROUP**.";
-      };
+        members = mkOption {
+          type = types.listOf types.str;
+          default = [ ];
+          description = "List of member control plane names. Only used when the control plane _cluster_type_ is **CLUSTER_TYPE_CONTROL_PLANE_GROUP**.";
+        };
 
-      create_certificate = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Whether to use Kontfix to create and manage certificates";
-      };
+        create_certificate = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether to use Kontfix to create and manage certificates";
+        };
 
-      pki_backend = mkOption {
-        type = types.enum [ "hcv" ];
-        default = cfg.defaults.controlPlanes.pki_backend;
-        description = "PKI backend used to generate certificate for control plane using **pki_client_certs** auth type";
-      };
+        pki_backend = mkOption {
+          type = types.enum [ "hcv" ];
+          default = cfg.defaults.controlPlanes.pki_backend;
+          description = "PKI backend used to generate certificate for control plane using **pki_client_certs** auth type";
+        };
 
-      store_cluster_config = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Whether to store cluster configuration to respective backend when certificate is not managed by Kontfix";
-      };
+        store_cluster_config = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether to store cluster configuration to respective backend when certificate is not managed by Kontfix";
+        };
 
-      upload_ca_certificate = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Whether to upload CA certificate to the control plane";
-      };
+        upload_ca_certificate = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether to upload CA certificate to the control plane. This option is set to _true_ when `create_certificate` is _true_. If you use PKI backend, make sure either `ca_certificate` of your control plane or `kontfix.defaults.pki_ca_certificate` is used.";
+        };
 
-      ca_certificate = mkOption {
-        type = types.nullOr types.str;
-        default = null;
-        description = "Custom CA certificate for this control plane (overrides defaults.pki_ca_certificate)";
-      };
+        ca_certificate = mkOption {
+          type = types.nullOr types.str;
+          default = null;
+          description = "Custom CA certificate for this control plane (overrides defaults.pki_ca_certificate)";
+        };
 
-      system_account = mkOption {
-        type = types.submodule {
-          options = {
-            enable = mkOption {
-              type = types.bool;
-              default = false;
-              description = "Whether to create an individual system account for this control plane";
-            };
-            generate_token = mkOption {
-              type = types.bool;
-              default = false;
-              description = "Whether to generate an access token for the system account (stored in storage backend)";
+        system_account = mkOption {
+          type = types.submodule {
+            options = {
+              enable = mkOption {
+                type = types.bool;
+                default = false;
+                description = "Whether to create an individual system account for this control plane";
+              };
+              generate_token = mkOption {
+                type = types.bool;
+                default = false;
+                description = "Whether to generate an access token for the system account (stored in storage backend)";
+              };
             };
           };
+          default = { };
+          description = "System account configuration";
         };
-        default = { };
-        description = "System account configuration";
-      };
 
-      custom_plugins = mkOption {
-        type = types.listOf types.str;
-        default = [ ];
-        description = "List of custom plugins to enable";
-      };
+        custom_plugins = mkOption {
+          type = types.listOf types.str;
+          default = [ ];
+          description = "List of custom plugins to enable";
+        };
 
-      storage_backend = mkOption {
-        type = types.listOf (
-          types.enum [
-            "local"
-            "hcv"
-            "aws"
-          ]
-        );
-        default = cfg.defaults.controlPlanes.storage_backend;
-        description = "Storage backend options";
-      };
+        storage_backend = mkOption {
+          type = types.listOf (
+            types.enum [
+              "local"
+              "hcv"
+              "aws"
+            ]
+          );
+          default = cfg.defaults.controlPlanes.storage_backend;
+          description = "Storage backend options";
+        };
 
-      aws = mkOption {
-        type = types.submodule {
-          options = {
-            enable = mkOption {
-              type = types.bool;
-              default = false;
-              description = "Whether to enable AWS provider. Enable this option to have the aws provider generated for this control plane.";
-            };
-            profile = mkOption {
-              type = types.str;
-              default = "";
-              description = "AWS profile name to use";
-            };
-            region = mkOption {
-              type = types.str;
-              default = "";
-              description = "AWS region for resources";
-            };
-            tags = mkOption {
-              type = types.attrsOf types.str;
-              default = { };
-              description = "AWS tags to apply when using AWS storage backend. Mandatory for using aws backend.";
+        aws = mkOption {
+          type = types.submodule {
+            options = {
+              enable = mkOption {
+                type = types.bool;
+                default = false;
+                description = "Whether to enable AWS provider. Enable this option to have the aws provider generated for this control plane.";
+              };
+              profile = mkOption {
+                type = types.str;
+                default = "";
+                description = "AWS profile name to use";
+              };
+              region = mkOption {
+                type = types.str;
+                default = "";
+                description = "AWS region for resources";
+              };
+              tags = mkOption {
+                type = types.attrsOf types.str;
+                default = { };
+                description = "AWS tags to apply when using AWS storage backend. Mandatory for using aws backend.";
+              };
             };
           };
+          default = { };
+          description = "AWS provider configuration";
         };
-        default = { };
-        description = "AWS provider configuration";
       };
-    };
-  };
+
+      config = {
+        upload_ca_certificate = mkDefault config.create_certificate;
+      };
+    }
+  );
 
 in
 {

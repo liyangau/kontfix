@@ -47,7 +47,6 @@
                     dev = {
                       description = "dev control plane";
                       create_certificate = true;
-                      upload_ca_certificate = true;
                       system_account = {
                         enable = true;
                         generate_token = true;
@@ -62,7 +61,6 @@
                     dev = {
                       description = "dev control plane";
                       create_certificate = true;
-                      upload_ca_certificate = true;
                       system_account = {
                         enable = true;
                         generate_token = true;

@@ -1,3 +1,10 @@
+let
+  ca = ''
+    -----BEGIN CERTIFICATE-----
+    ...
+    -----END CERTIFICATE-----    
+  '';
+in
 {
   kontfix = {
     defaults = {
@@ -18,6 +25,7 @@
       au = {
         test = {
           create_certificate = true;
+          ca_certificate = ca;
           auth_type = "pki_client_certs";
           storage_backend = [ "hcv" ];
         };

@@ -1,3 +1,10 @@
+let
+  ca = ''
+    -----BEGIN CERTIFICATE-----
+    ...
+    -----END CERTIFICATE-----    
+  '';
+in
 {
   kontfix = {
     defaults = {
@@ -45,6 +52,7 @@
         validity_period = 15;
         renewal_before_expiry = 5;
       };
+      pki_ca_certificate = ca;
     };
     controlPlanes = {
       au = {

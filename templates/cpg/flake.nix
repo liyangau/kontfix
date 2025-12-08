@@ -70,7 +70,6 @@
                       name = "dev-group";
                       description = "dev control plane";
                       create_certificate = true;
-                      upload_ca_certificate = true;
                       cluster_type = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
                       members = [
                         "dev-tenant"
