@@ -26,7 +26,7 @@
             pkgs = nixpkgs.legacyPackages.${system};
           }
         );
-      tf_version = "1.13.4";
+      tf_version = "terraform-1.14.0";
 
       terraformConfiguration =
         system:
@@ -97,6 +97,7 @@
         {
           build = {
             type = "app";
+            meta.description = "Build terraform configuration file";
             program = toString (
               pkgs.writers.writeBash "build" ''
                 if [[ -e config.tf.json ]]; then rm -f config.tf.json; fi
@@ -106,6 +107,7 @@
           };
           init = {
             type = "app";
+            meta.description = "Init terraform configuration file";
             program = toString (
               pkgs.writers.writeBash "init" ''
                 if [[ -e config.tf.json ]]; then rm -f config.tf.json; fi
@@ -116,6 +118,7 @@
           };
           plan = {
             type = "app";
+            meta.description = "Plan terraform changes";
             program = toString (
               pkgs.writers.writeBash "plan" ''
                 if [[ -e config.tf.json ]]; then rm -f config.tf.json; fi
@@ -126,6 +129,7 @@
           };
           apply = {
             type = "app";
+            meta.description = "Apply terraform changes";
             program = toString (
               pkgs.writers.writeBash "apply" ''
                 if [[ -e config.tf.json ]]; then rm -f config.tf.json; fi
@@ -136,6 +140,7 @@
           };
           destroy = {
             type = "app";
+            meta.description = "Destroy terraform managed infrastructure";
             program = toString (
               pkgs.writers.writeBash "destroy" ''
                 if [[ -e config.tf.json ]]; then rm -f config.tf.json; fi
