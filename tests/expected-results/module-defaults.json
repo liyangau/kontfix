@@ -115,17 +115,17 @@
     {
       "resource_type": "local_file",
       "resource_name": "au-test-self-signed_pinned_cert",
-      "filename": "${path.module}/certs/au-test-self-signed-cert.pem"
+      "filename": "${path.module}/certs/au-test-self-signed/cert.pem"
     },
     {
       "resource_type": "local_file",
       "resource_name": "au-test-self-signed_pinned_key",
-      "filename": "${path.module}/certs/au-test-self-signed-key.pem"
+      "filename": "${path.module}/certs/au-test-self-signed/key.pem"
     },
     {
       "resource_type": "local_file",
-      "resource_name": "au-test-self-signed_pinned_config",
-      "filename": "${path.module}/certs/au-test-self-signed-cluster-config.json"
+      "resource_name": "au-test-self-signed_cluster_config",
+      "filename": "${path.module}/clusters/au-test-self-signed"
     },
     {
       "resource_type": "tls_private_key",

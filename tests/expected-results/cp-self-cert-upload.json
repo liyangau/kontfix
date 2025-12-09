@@ -25,17 +25,17 @@
     {
       "resource_type": "local_file",
       "resource_name": "au-test_pinned_cert",
-      "filename": "${path.module}/certs/au-test-cert.pem"
+      "filename": "${path.module}/certs/au-test/cert.pem"
     },
     {
       "resource_type": "local_file",
       "resource_name": "au-test_pinned_key",
-      "filename": "${path.module}/certs/au-test-key.pem"
+      "filename": "${path.module}/certs/au-test/key.pem"
     },
     {
       "resource_type": "local_file",
-      "resource_name": "au-test_pinned_config",
-      "filename": "${path.module}/certs/au-test-cluster-config.json"
+      "resource_name": "au-test_cluster_config",
+      "filename": "${path.module}/clusters/au-test"
     },
     {
       "resource_type": "tls_private_key",
