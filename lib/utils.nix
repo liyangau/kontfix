@@ -19,7 +19,7 @@ rec {
 
   # Cluster types
   clusterTypes = {
-    controlPlane = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
+    controlPlane = "CLUSTER_TYPE_CONTROL_PLANE";
     controlPlaneGroup = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
     k8sIngress = "CLUSTER_TYPE_K8S_INGRESS_CONTROLLER";
   };

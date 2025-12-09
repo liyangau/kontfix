@@ -22,13 +22,17 @@ let
         output = mkOption {
           type = types.bool;
           default = false;
-          description = "Whether to output the control plane details";
+          description = "Whether to output the control plane details in terraform output";
         };
 
         cluster_type = mkOption {
-          type = types.str;
+          type = types.enum [
+            "CLUSTER_TYPE_CONTROL_PLANE"
+            "CLUSTER_TYPE_K8S_INGRESS_CONTROLLER"
+            "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+          ];
           default = "CLUSTER_TYPE_CONTROL_PLANE";
-          description = "Type of the control plane";
+          description = "Supported control plane types";
         };
 
         auth_type = mkOption {
@@ -61,7 +65,7 @@ let
         create_certificate = mkOption {
           type = types.bool;
           default = false;
-          description = "Whether to use Kontfix to create and manage certificates";
+          description = "Whether to use Kontfix to create and manage cluster certificates for Konnect control plane and dataplane communication.";
         };
 
         pki_backend = mkOption {
@@ -85,7 +89,7 @@ let
         ca_certificate = mkOption {
           type = types.nullOr types.str;
           default = null;
-          description = "Custom CA certificate for this control plane (overrides defaults.pki_ca_certificate)";
+          description = "Custom CA certificate for this control plane (overrides `defaults.pki_ca_certificate`)";
         };
 
         system_account = mkOption {
@@ -110,7 +114,7 @@ let
         custom_plugins = mkOption {
           type = types.listOf types.str;
           default = [ ];
-          description = "List of custom plugins to enable";
+          description = "List of custom plugins schemas to be uploaded to the control plane";
         };
 
         storage_backend = mkOption {

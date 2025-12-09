@@ -113,13 +113,13 @@ with lib;
         pki_backend = mkOption {
           type = types.enum [ "hcv" ];
           default = "hcv";
-          description = "Default pki backend to generate certificate for control planes using pki_client_certs auth type";
+          description = "Default pki backend to generate certificate for control planes using _pki_client_certs_ auth type";
         };
       };
       pki_ca_certificate = mkOption {
         type = types.nullOr types.str;
         default = null;
-        description = "Default PKI CA certificate used for pki_client_certs authentication. Can be provided as string content or read from a file (e.g., 'builtins.readFile ./pki-ca/ca.pem;').";
+        description = "Default PKI CA certificate used for pki_client_certs authentication. Can be provided as string content or read from a file (e.g., `builtins.readFile ./pki-ca/ca.pem;`).";
       };
       vault_pki = {
         backend = mkOption {
@@ -145,14 +145,14 @@ with lib;
         min_seconds_remaining = mkOption {
           type = types.int;
           default = 604800; # 7 days
-          description = "Minimum seconds remaining before renewal";
+          description = "Minimum seconds remaining before renewal. Default is 604800 seconds (7 days).";
         };
       };
       self_signed_cert = {
         validity_period = mkOption {
           type = types.int;
           default = 90;
-          description = "The validity period of self-signed certificates in days. Default is 90 days (3 months).";
+          description = "The validity period of self-signed certificates in days. Default is 90 days.";
         };
         renewal_before_expiry = mkOption {
           type = types.int;
@@ -163,7 +163,7 @@ with lib;
       enable_id_admin = mkOption {
         type = types.bool;
         default = false;
-        description = "Whether to always create the id_admin Konnect provider for managing system accounts. This prevents 'Provider configuration not present' errors when removing all system accounts and groups. Set to true if you need the id_admin provider to persist even when no system accounts or groups are currently configured.";
+        description = "Whether to always create the _id_admin_ Konnect provider for managing system accounts. This prevents **Provider configuration not present** errors when removing all system accounts and groups. Set to `true` if you need the id_admin provider to persist when no system accounts or groups are currently configured.";
       };
       system_account_tokens = {
         validity_period = mkOption {

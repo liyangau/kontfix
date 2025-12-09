@@ -11,7 +11,7 @@ let
       generate_token = mkOption {
         type = types.bool;
         default = false;
-        description = "Whether to generate and store a system account token for this group";
+        description = "Whether to generate and store a system account token in the backend for this group";
       };
 
       storage_backend = mkOption {
@@ -22,7 +22,7 @@ let
             "aws"
           ]
         );
-        default = [ "hcv" ];
+        default = [ "local" ];
         description = "Storage backend(s) for group system account token";
       };
 
