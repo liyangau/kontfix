@@ -46,7 +46,7 @@ in
               description = "Kong control plane admin token";
               sensitive = true;
             };
-            id_admin_token = mkIf (processed.individualSystemAccountPlanes != { } || cfg.groups != { }) {
+            id_admin_token = mkIf (processed.individualSystemAccountPlanes != { } || cfg.groups != { } || cfg.defaults.enable_id_admin) {
               type = "string";
               description = "Kong identity admin token";
               sensitive = true;

@@ -1,0 +1,24 @@
+{
+  "providers": [
+    {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    },
+    {
+      "provider": "konnect",
+      "alias": "id_admin",
+      "personal_access_token": "${var.id_admin_token}",
+      "server_url": "https://global.api.konghq.com"
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token"
+    },
+    {
+      "variable_name": "id_admin_token"
+    }
+  ]
+}

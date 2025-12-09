@@ -160,6 +160,11 @@ with lib;
           description = "Number of days before certificate expiry to trigger renewal. Default is 15 days before expiry.";
         };
       };
+      enable_id_admin = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether to always create the id_admin Konnect provider for managing system accounts. This prevents 'Provider configuration not present' errors when removing all system accounts and groups. Set to true if you need the id_admin provider to persist even when no system accounts or groups are currently configured.";
+      };
       system_account_tokens = {
         validity_period = mkOption {
           type = types.int;

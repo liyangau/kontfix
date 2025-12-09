@@ -10,25 +10,15 @@ let
   groups = config.kontfix.groups;
   storageConfig = config.kontfix.defaults.storage;
 
-  # Centralized provider versions for easy management
-  providerVersions = {
-    konnect = "3.3.0";
-    tls = "4.1.0";
-    time = "0.13.1";
-    aws = "6.17.0";
-    vault = "5.3.0";
-    local = "2.5.3";
-    null = "3.2.4";
-  };
+  # Use configurable provider versions from defaults
+  providerVersions = config.kontfix.defaults.provider_versions;
 
   storageRequiredControlPlanes = sharedContext.storageRequiredControlPlanes;
   storageRequiredGroups = sharedContext.storageRequiredGroups;
   needsStorageResources = storageRequiredControlPlanes != { } || storageRequiredGroups != [ ];
 
   # Get control planes that need PKI certificate generation and use HCV backend
-  hcvPkiPlanes = filterAttrs (
-    name: cp: cp.create_certificate or false && cp.pki_backend == "hcv"
-  ) sharedContext.pkiCertControlPlanes;
+  hcvPkiPlanes = sharedContext.hcvPkiCertControlPlanes;
 
   # PKI configuration (for certificate generation)
   pkiConfig = config.kontfix.defaults.pki;
@@ -41,7 +31,7 @@ let
       server_url = "https://${region}.api.konghq.com";
     }) (attrNames cps))
     ++ (
-      if (sharedContext.individualSystemAccountPlanes != { } || groups != { }) then
+      if (sharedContext.individualSystemAccountPlanes != { } || groups != { } || config.kontfix.defaults.enable_id_admin) then
         [
           {
             alias = "id_admin";
