@@ -54,57 +54,24 @@ in
           };
 
           # AWS variables
-          awsStoragePlanes = processed.awsStorageControlPlanes;
-          awsProviderPlanes = processed.awsProviderRequiredControlPlanes;
-          awsVars = mkMerge [
-            (mkIf (cfg.defaults.storage.aws.region != "" && cfg.defaults.storage.aws.profile != "") {
-              aws_region = {
-                type = "string";
-                description = "AWS default region";
-                default = cfg.defaults.storage.aws.region;
-              };
-              aws_profile = {
-                type = "string";
-                description = "AWS default profile";
-                default = cfg.defaults.storage.aws.profile;
-              };
-            })
-            # Also create AWS variables when AWS providers are needed for cleanup
-            (mkIf
-              (
-                awsProviderPlanes != { }
-                && (cfg.defaults.storage.aws.region == "" || cfg.defaults.storage.aws.profile == "")
-              )
-              {
-                aws_region = {
-                  type = "string";
-                  description = "AWS default region";
-                  default = cfg.defaults.storage.aws.region;
-                };
-                aws_profile = {
-                  type = "string";
-                  description = "AWS default profile";
-                  default = cfg.defaults.storage.aws.profile;
-                };
-              }
-            )
-            (mkIf
-              (
-                usesAWSStorageBackend
-                && (cfg.defaults.storage.aws.region == "" || cfg.defaults.storage.aws.profile == "")
-              )
-              {
-                aws_region = {
-                  type = "string";
-                  description = "AWS default region";
-                };
-                aws_profile = {
-                  type = "string";
-                  description = "AWS default profile";
-                };
-              }
-            )
-          ];
+          # Determine if AWS variables are needed
+          needsAwsVars = usesAWSStorageBackend || processed.awsProviderRequiredControlPlanes != { };
+          hasAwsDefaults = cfg.defaults.storage.aws.region != "" && cfg.defaults.storage.aws.profile != "";
+          
+          awsVars = mkIf needsAwsVars {
+            aws_region = {
+              type = "string";
+              description = "AWS default region";
+            } // optionalAttrs hasAwsDefaults {
+              default = cfg.defaults.storage.aws.region;
+            };
+            aws_profile = {
+              type = "string";
+              description = "AWS default profile";
+            } // optionalAttrs hasAwsDefaults {
+              default = cfg.defaults.storage.aws.profile;
+            };
+          };
 
           # HCV storage variables
           hcvStoragePlanes = processed.hcvStorageControlPlanes;
