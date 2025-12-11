@@ -97,10 +97,10 @@ in
           cluster_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.cp.konghq.com\"
           cluster_telemetry_endpoint = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com:443\"
           cluster_telemetry_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com\"
-          private_cluster_url = \"\${substr(var.aws_region, 0, 2)}.svc.konghq.com/cp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
-          private_telemetry_url = \"\${substr(var.aws_region, 0, 2)}.svc.konghq.com:443/tp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
-          private_cluster_server_name=\"\${substr(var.aws_region, 0, 2)}.svc.konghq.com\"
-          private_cluster_telemetry_server_name=\"\${substr(var.aws_region, 0, 2)}.svc.konghq.com\"
+          private_cluster_url = \"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com/cp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
+          private_telemetry_url = \"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com:443/tp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
+          private_cluster_server_name=\"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com\"
+          private_cluster_telemetry_server_name=\"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com\"
           })}";
         }
       ) awsStoragePkiCertControlPlanes)
@@ -123,10 +123,10 @@ in
           cluster_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.cp.konghq.com\"
           cluster_telemetry_endpoint = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com:443\"
           cluster_telemetry_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com\"
-          private_cluster_url = \"\${substr(var.aws_region, 0, 2)}.svc.konghq.com/cp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
-          private_telemetry_url = \"\${substr(var.aws_region, 0, 2)}.svc.konghq.com:443/tp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
-          private_cluster_server_name=\"\${substr(var.aws_region, 0, 2)}.svc.konghq.com\"
-          private_cluster_telemetry_server_name=\"\${substr(var.aws_region, 0, 2)}.svc.konghq.com\"
+          private_cluster_url = \"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com/cp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
+          private_telemetry_url = \"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com:443/tp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
+          private_cluster_server_name=\"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com\"
+          private_cluster_telemetry_server_name=\"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com\"
           })}";
           lifecycle = [
             {
@@ -153,10 +153,10 @@ in
           cluster_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.cp.konghq.com\"
           cluster_telemetry_endpoint = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com:443\"
           cluster_telemetry_server_name = \"\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}.${cp.region}.tp.konghq.com\"
-          private_cluster_url = \"\${substr(var.aws_region, 0, 2)}.svc.konghq.com/cp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
-          private_telemetry_url = \"\${substr(var.aws_region, 0, 2)}.svc.konghq.com:443/tp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
-          private_cluster_server_name=\"\${substr(var.aws_region, 0, 2)}.svc.konghq.com\"
-          private_cluster_telemetry_server_name=\"\${substr(var.aws_region, 0, 2)}.svc.konghq.com\"
+          private_cluster_url = \"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com/cp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
+          private_telemetry_url = \"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com:443/tp/\${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]}\"
+          private_cluster_server_name=\"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com\"
+          private_cluster_telemetry_server_name=\"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com\"
           })}";
         }
       ) awsStorageClusterConfigOnlyControlPlanes)

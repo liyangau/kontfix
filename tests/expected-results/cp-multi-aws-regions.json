@@ -1,0 +1,56 @@
+{
+  "providers": [
+    {
+      "provider": "aws",
+      "alias": "eu-staging",
+      "profile": "staging",
+      "region": "eu-west-1"
+    },
+    {
+      "provider": "aws",
+      "alias": "us-dev",
+      "profile": "${var.aws_profile}",
+      "region": "${var.aws_region}"
+    },
+    {
+      "provider": "aws",
+      "alias": "us-prod",
+      "profile": "production",
+      "region": "us-east-1"
+    }
+  ],
+  "resources": [
+    {
+      "resource_type": "aws_secretsmanager_secret_version",
+      "resource_name": "eu-staging_pinned_cluster_version",
+      "provider": "aws.eu-staging",
+      "secret_id": "${aws_secretsmanager_secret.eu-staging_pinned_cluster_config.id}",
+      "secret_string": "${jsonencode({\n          certificate = tls_self_signed_cert.eu-staging.cert_pem\n          private_key = tls_private_key.eu-staging.private_key_pem\n          cp_id = konnect_gateway_control_plane.eu-staging.id\n          issuing_ca = tls_self_signed_cert.eu-staging.cert_pem\n          cluster_url = konnect_gateway_control_plane.eu-staging.config.control_plane_endpoint\n          telemetry_url = konnect_gateway_control_plane.eu-staging.config.telemetry_endpoint\n          cluster_prefix = regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.eu-staging.config.control_plane_endpoint)[0]\n          cluster_control_plane = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.eu-staging.config.control_plane_endpoint)[0]}.eu.cp.konghq.com:443\"\n          cluster_server_name = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.eu-staging.config.control_plane_endpoint)[0]}.eu.cp.konghq.com\"\n          cluster_telemetry_endpoint = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.eu-staging.config.control_plane_endpoint)[0]}.eu.tp.konghq.com:443\"\n          cluster_telemetry_server_name = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.eu-staging.config.control_plane_endpoint)[0]}.eu.tp.konghq.com\"\n          private_cluster_url = \"${substr(\"eu-west-1\", 0, 2)}.svc.konghq.com/cp/${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.eu-staging.config.control_plane_endpoint)[0]}\"\n          private_telemetry_url = \"${substr(\"eu-west-1\", 0, 2)}.svc.konghq.com:443/tp/${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.eu-staging.config.control_plane_endpoint)[0]}\"\n          private_cluster_server_name=\"${substr(\"eu-west-1\", 0, 2)}.svc.konghq.com\"\n          private_cluster_telemetry_server_name=\"${substr(\"eu-west-1\", 0, 2)}.svc.konghq.com\"\n          })}"
+    },
+    {
+      "resource_type": "aws_secretsmanager_secret_version",
+      "resource_name": "us-dev_pinned_cluster_version",
+        "provider": "aws.us-dev",
+        "secret_id": "${aws_secretsmanager_secret.us-dev_pinned_cluster_config.id}",
+        "secret_string": "${jsonencode({\n          certificate = tls_self_signed_cert.us-dev.cert_pem\n          private_key = tls_private_key.us-dev.private_key_pem\n          cp_id = konnect_gateway_control_plane.us-dev.id\n          issuing_ca = tls_self_signed_cert.us-dev.cert_pem\n          cluster_url = konnect_gateway_control_plane.us-dev.config.control_plane_endpoint\n          telemetry_url = konnect_gateway_control_plane.us-dev.config.telemetry_endpoint\n          cluster_prefix = regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-dev.config.control_plane_endpoint)[0]\n          cluster_control_plane = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-dev.config.control_plane_endpoint)[0]}.us.cp.konghq.com:443\"\n          cluster_server_name = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-dev.config.control_plane_endpoint)[0]}.us.cp.konghq.com\"\n          cluster_telemetry_endpoint = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-dev.config.control_plane_endpoint)[0]}.us.tp.konghq.com:443\"\n          cluster_telemetry_server_name = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-dev.config.control_plane_endpoint)[0]}.us.tp.konghq.com\"\n          private_cluster_url = \"${substr(var.aws_region, 0, 2)}.svc.konghq.com/cp/${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-dev.config.control_plane_endpoint)[0]}\"\n          private_telemetry_url = \"${substr(var.aws_region, 0, 2)}.svc.konghq.com:443/tp/${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-dev.config.control_plane_endpoint)[0]}\"\n          private_cluster_server_name=\"${substr(var.aws_region, 0, 2)}.svc.konghq.com\"\n          private_cluster_telemetry_server_name=\"${substr(var.aws_region, 0, 2)}.svc.konghq.com\"\n          })}"
+    },
+    {
+      "resource_type": "aws_secretsmanager_secret_version",
+      "resource_name": "us-prod_pinned_cluster_version",
+        "provider": "aws.us-prod",
+        "secret_id": "${aws_secretsmanager_secret.us-prod_pinned_cluster_config.id}",
+        "secret_string": "${jsonencode({\n          certificate = tls_self_signed_cert.us-prod.cert_pem\n          private_key = tls_private_key.us-prod.private_key_pem\n          cp_id = konnect_gateway_control_plane.us-prod.id\n          issuing_ca = tls_self_signed_cert.us-prod.cert_pem\n          cluster_url = konnect_gateway_control_plane.us-prod.config.control_plane_endpoint\n          telemetry_url = konnect_gateway_control_plane.us-prod.config.telemetry_endpoint\n          cluster_prefix = regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-prod.config.control_plane_endpoint)[0]\n          cluster_control_plane = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-prod.config.control_plane_endpoint)[0]}.us.cp.konghq.com:443\"\n          cluster_server_name = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-prod.config.control_plane_endpoint)[0]}.us.cp.konghq.com\"\n          cluster_telemetry_endpoint = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-prod.config.control_plane_endpoint)[0]}.us.tp.konghq.com:443\"\n          cluster_telemetry_server_name = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-prod.config.control_plane_endpoint)[0]}.us.tp.konghq.com\"\n          private_cluster_url = \"${substr(\"us-east-1\", 0, 2)}.svc.konghq.com/cp/${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-prod.config.control_plane_endpoint)[0]}\"\n          private_telemetry_url = \"${substr(\"us-east-1\", 0, 2)}.svc.konghq.com:443/tp/${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-prod.config.control_plane_endpoint)[0]}\"\n          private_cluster_server_name=\"${substr(\"us-east-1\", 0, 2)}.svc.konghq.com\"\n          private_cluster_telemetry_server_name=\"${substr(\"us-east-1\", 0, 2)}.svc.konghq.com\"\n          })}"
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token"
+    },
+    {
+      "variable_name": "aws_region"
+    },
+    {
+      "variable_name": "aws_profile"
+    }
+  ]
+}

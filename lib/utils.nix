@@ -67,10 +67,23 @@ rec {
         storesClusterConfig = cp.store_cluster_config or false;
         needsStorage =
           createsCert || storesClusterConfig || (systemAccountEnabled && systemAccountGenToken);
+        
+        # Normalize AWS region: use cp.aws.region if defined, otherwise fallback to var.aws_region
+        # This is needed for computing private URLs in AWS storage backend
+        # Store both the value and whether it's a variable reference
+        computedAwsRegion = 
+          if (cp.aws.region or "") != "" then 
+            cp.aws.region 
+          else 
+            null;  # null means use var.aws_region
       in
       cp
       // {
-        _tags = {
+        # Store the computed AWS region for use in storage backends
+        # If null, it means we should use var.aws_region in Terraform
+        inherit computedAwsRegion;
+        
+        tags = {
           inherit
             hasPki
             hasPinned
@@ -101,7 +114,7 @@ rec {
 
   # Tag-based filtering functions (O(1) lookups after tagging)
   filterByTag =
-    tag: taggedControlPlanes: filterAttrs (_: cp: cp._tags.${tag} or false) taggedControlPlanes;
+    tag: taggedControlPlanes: filterAttrs (_: cp: cp.tags.${tag} or false) taggedControlPlanes;
 
   # Tag-based storage filtering with conditions
   filterByStorageTag =
@@ -113,11 +126,11 @@ rec {
     filterAttrs (
       _: cp:
       if backend == "aws" then
-        cp._tags.usesAws && (if requireEnabled then cp._tags.awsEnabled else true)
+        cp.tags.usesAws && (if requireEnabled then cp.tags.awsEnabled else true)
       else if backend == "hcv" then
-        cp._tags.usesHcv
+        cp.tags.usesHcv
       else if backend == "local" then
-        cp._tags.usesLocal
+        cp.tags.usesLocal
       else
         false
     ) taggedControlPlanes;
@@ -166,7 +179,7 @@ rec {
 
       # AWS-specific filters (still O(1))
       awsProviderRequiredControlPlanes = filterAttrs (
-        _: cp: cp._tags.usesAws || cp._tags.awsEnabled
+        _: cp: cp.tags.usesAws || cp.tags.awsEnabled
       ) taggedValidatedControlPlanes;
       awsEnabledControlPlanes = filterByTag "awsEnabled" taggedValidatedControlPlanes;
       awsEnabledWithStorage = filterByTag "awsStorageEnabled" taggedValidatedControlPlanes;
