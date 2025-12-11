@@ -91,11 +91,17 @@ let
           attrValues (
             mapAttrs (
               groupName: groupConfig:
-              mkIf (elem "aws" groupConfig.storage_backend && (groupConfig.aws.enable or false)) {
-                alias = "${regionName}-group-${groupName}";
-                profile = "\${var.aws_profile}";
-                region = "\${var.aws_region}";
-              }
+              mkIf (elem "aws" groupConfig.storage_backend && (groupConfig.aws.enable or false)) (
+                let
+                  customRegion = groupConfig.aws.region or "";
+                  customProfile = groupConfig.aws.profile or "";
+                in
+                {
+                  alias = "${regionName}-group-${groupName}";
+                  profile = if customProfile != "" then customProfile else "\${var.aws_profile}";
+                  region = if customRegion != "" then customRegion else "\${var.aws_region}";
+                }
+              )
             ) regionGroups
           )
         ) awsGroups

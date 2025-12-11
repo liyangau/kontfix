@@ -26,13 +26,7 @@ let
 
   controlPlanesWithLabels = processed.validatedControlPlanes;
   outputEnabledControlPlanes = processed.outputEnabledControlPlanes;
-  storageRequiredControlPlanes = processed.storageRequiredControlPlanes;
-  storageRequiredGroups = processed.storageRequiredGroups;
 
-  # Check if AWS storage is used anywhere
-  usesAWSStorageBackend =
-    (any (cp: elem "aws" cp.storage_backend) (attrValues storageRequiredControlPlanes))
-    || (any (group: elem "aws" group.groupConfig.storage_backend) storageRequiredGroups);
 in
 {
   config = mkMerge [
@@ -54,24 +48,34 @@ in
           };
 
           # AWS variables
-          # Determine if AWS variables are needed
-          needsAwsVars = usesAWSStorageBackend || processed.awsProviderRequiredControlPlanes != { };
-          hasAwsDefaults = cfg.defaults.storage.aws.region != "" && cfg.defaults.storage.aws.profile != "";
+          # Check if any control plane OR group needs AWS variables (doesn't define its own region or profile)
+          anyAwsProviderNeedsRegion = 
+            any (cp: cp.computedAwsRegion == null) (attrValues processed.awsProviderRequiredControlPlanes)
+            || any (group: group.computedAwsRegion == null) processed.awsStorageGroups;
+          anyAwsProviderNeedsProfile = 
+            any (cp: cp.computedAwsProfile == null) (attrValues processed.awsProviderRequiredControlPlanes)
+            || any (group: group.computedAwsProfile == null) processed.awsStorageGroups;
+          hasAwsRegionDefault = cfg.defaults.storage.aws.region != "";
+          hasAwsProfileDefault = cfg.defaults.storage.aws.profile != "";
           
-          awsVars = mkIf needsAwsVars {
-            aws_region = {
-              type = "string";
-              description = "AWS default region";
-            } // optionalAttrs hasAwsDefaults {
-              default = cfg.defaults.storage.aws.region;
-            };
-            aws_profile = {
-              type = "string";
-              description = "AWS default profile";
-            } // optionalAttrs hasAwsDefaults {
-              default = cfg.defaults.storage.aws.profile;
-            };
-          };
+          awsVars = mkMerge [
+            (mkIf anyAwsProviderNeedsRegion {
+              aws_region = {
+                type = "string";
+                description = "AWS default region";
+              } // optionalAttrs hasAwsRegionDefault {
+                default = cfg.defaults.storage.aws.region;
+              };
+            })
+            (mkIf anyAwsProviderNeedsProfile {
+              aws_profile = {
+                type = "string";
+                description = "AWS default profile";
+              } // optionalAttrs hasAwsProfileDefault {
+                default = cfg.defaults.storage.aws.profile;
+              };
+            })
+          ];
 
           # HCV storage variables
           hcvStoragePlanes = processed.hcvStorageControlPlanes;

@@ -1,0 +1,10 @@
+{
+  "providers": [
+    {
+      "provider": "aws",
+      "alias": "au-group-dev_team",
+      "profile": "dev-profile",
+      "region": "ap-southeast-2"
+    }
+  ]
+}

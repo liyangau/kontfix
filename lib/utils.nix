@@ -68,20 +68,26 @@ rec {
         needsStorage =
           createsCert || storesClusterConfig || (systemAccountEnabled && systemAccountGenToken);
         
-        # Normalize AWS region: use cp.aws.region if defined, otherwise fallback to var.aws_region
-        # This is needed for computing private URLs in AWS storage backend
-        # Store both the value and whether it's a variable reference
+        # Normalize AWS region and profile: use cp.aws values if defined, otherwise fallback to variables
+        # This is needed for computing private URLs in AWS storage backend and generating variables
+        # null means use var.aws_region or var.aws_profile
         computedAwsRegion = 
           if (cp.aws.region or "") != "" then 
             cp.aws.region 
           else 
             null;  # null means use var.aws_region
+        
+        computedAwsProfile = 
+          if (cp.aws.profile or "") != "" then 
+            cp.aws.profile 
+          else 
+            null;  # null means use var.aws_profile
       in
       cp
       // {
-        # Store the computed AWS region for use in storage backends
-        # If null, it means we should use var.aws_region in Terraform
-        inherit computedAwsRegion;
+        # Store the computed AWS region and profile for use in storage backends and variable generation
+        # If null, it means we should use var.aws_region or var.aws_profile in Terraform
+        inherit computedAwsRegion computedAwsProfile;
         
         tags = {
           inherit
@@ -452,13 +458,17 @@ rec {
       # Validation 2: Groups using AWS backend must have aws.enable = true
       awsEnabled = groupConfig.aws.enable or false;
       awsStorageValid = !usesAws || awsEnabled;
+
+      # Compute AWS region and profile (null if not defined)
+      computedAwsRegion = if groupConfig.aws.region or "" != "" then groupConfig.aws.region else null;
+      computedAwsProfile = if groupConfig.aws.profile or "" != "" then groupConfig.aws.profile else null;
     in
     if !awsTagsValid then
       throw "Group '${group.groupName}' uses AWS backend but aws.tags is not defined or empty"
     else if !awsStorageValid then
       throw "Group '${group.groupName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
     else
-      group;
+      group // { inherit computedAwsRegion computedAwsProfile; };
 
   # ============================================================================
   # Processing Functions
@@ -548,18 +558,23 @@ rec {
       storageRequiredGroups = filter (
         group: group.groupConfig.generate_token
       ) groupProcessed.validatedGroups;
-      awsStorageGroups = getGroupsWithStorage {
-        groups = groupsFromValidated groupProcessed.validatedGroups;
-        backend = "aws";
-      };
-      hcvStorageGroups = getGroupsWithStorage {
-        groups = groupsFromValidated groupProcessed.validatedGroups;
-        backend = "hcv";
-      };
-      localStorageGroups = getGroupsWithStorage {
-        groups = groupsFromValidated groupProcessed.validatedGroups;
-        backend = "local";
-      };
+      # Filter validated groups directly to preserve computed fields
+      awsStorageGroups = filter (
+        group: 
+          elem "aws" group.groupConfig.storage_backend 
+          && group.groupConfig.generate_token
+          && (group.groupConfig.aws.enable or false)
+      ) groupProcessed.validatedGroups;
+      hcvStorageGroups = filter (
+        group: 
+          elem "hcv" group.groupConfig.storage_backend 
+          && group.groupConfig.generate_token
+      ) groupProcessed.validatedGroups;
+      localStorageGroups = filter (
+        group: 
+          elem "local" group.groupConfig.storage_backend 
+          && group.groupConfig.generate_token
+      ) groupProcessed.validatedGroups;
       flattenedGroups = groupProcessed.flattenedGroups;
       validatedGroups = groupProcessed.validatedGroups;
     };

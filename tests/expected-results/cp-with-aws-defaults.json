@@ -1,0 +1,12 @@
+{
+  "variables": [
+    {
+      "variable_name": "aws_region",
+      "default": "us-east-1"
+    },
+    {
+      "variable_name": "aws_profile",
+      "default": "default"
+    }
+  ]
+}
