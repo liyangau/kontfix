@@ -16,17 +16,22 @@
   "control_planes": [
     {
       "resource_name": "au-test",
-      "count_only": true
+      "name": "test",
+      "auth_type": "pinned_client_certs",
+      "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+      "provider": "konnect.au"
     },
     {
       "resource_name": "us-test",
-      "count_only": true
+      "name": "test",
+      "auth_type": "pinned_client_certs",
+      "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+      "provider": "konnect.us"
     }
   ],
   "variables": [
     {
       "variable_name": "cp_admin_token",
-      "count_only": true,
       "type": "string"
     }
   ]
