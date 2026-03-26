@@ -25,6 +25,16 @@
         );
       tf_version = "1.13.4";
 
+      makeValidator =
+        pkgs:
+        pkgs.writeScriptBin "validator" ''
+          #!${(pkgs.python3.withPackages (ps: with ps; [
+            deepdiff
+            colorama
+          ]))}/bin/python3
+          ${builtins.readFile ./validators/main.py}
+        '';
+
       testConfigurations =
         let
           caseFiles = builtins.filter (file: nixpkgs.lib.hasSuffix ".nix" file) (
@@ -166,17 +176,7 @@
           configName,
         }:
         let
-          # Python validator script with enhanced dependencies (no linting)
-          pythonWithDeps = pkgs.python3.withPackages (
-            ps: with ps; [
-              deepdiff
-              colorama
-            ]
-          );
-          validator = pkgs.writeScriptBin "validator" ''
-            #!${pythonWithDeps}/bin/python3
-            ${builtins.readFile ./validators/main.py}
-          '';
+          validator = makeValidator pkgs;
         in
         {
           type = "app";
@@ -212,17 +212,7 @@
       createTestAllBuildsApp =
         { pkgs, system }:
         let
-          # Python validator script with enhanced dependencies (no linting)
-          pythonWithDeps = pkgs.python3.withPackages (
-            ps: with ps; [
-              deepdiff
-              colorama
-            ]
-          );
-          validator = pkgs.writeScriptBin "validator" ''
-            #!${pythonWithDeps}/bin/python3
-            ${builtins.readFile ./validators/main.py}
-          '';
+          validator = makeValidator pkgs;
         in
         {
           type = "app";
@@ -353,17 +343,7 @@
       createTestAllApp =
         { pkgs, system }:
         let
-          # Python validator script with enhanced dependencies (no linting)
-          pythonWithDeps = pkgs.python3.withPackages (
-            ps: with ps; [
-              deepdiff
-              colorama
-            ]
-          );
-          validator = pkgs.writeScriptBin "validator" ''
-            #!${pythonWithDeps}/bin/python3
-            ${builtins.readFile ./validators/main.py}
-          '';
+          validator = makeValidator pkgs;
         in
         {
           type = "app";
