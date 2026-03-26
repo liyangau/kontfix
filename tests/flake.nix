@@ -23,7 +23,7 @@
             pkgs = nixpkgs.legacyPackages.${system};
           }
         );
-      tf_version = "1.13.4";
+      tf_version = "terraform-1.14.0";
 
       makeValidator =
         pkgs:
@@ -33,6 +33,13 @@
             colorama
           ]))}/bin/python3
           ${builtins.readFile ./validators/main.py}
+        '';
+
+      makeSnapshot =
+        pkgs:
+        pkgs.writeScriptBin "snapshot" ''
+          #!${pkgs.python3}/bin/python3
+          ${builtins.readFile ./validators/snapshot.py}
         '';
 
       testConfigurations =
@@ -532,8 +539,32 @@
           testAllErrorsApp = {
             test-all-errors = createTestAllErrorsApp { inherit pkgs system; };
           };
+
+          # Snapshot apps
+          snapshotApps = nixpkgs.lib.listToAttrs (
+            map (configName: {
+              name = "snapshot-${configName}";
+              value =
+                let
+                  snapshotTool = makeSnapshot pkgs;
+                  config = createTestConfiguration { inherit system configName; };
+                  outputFile = "${configName}.tf.json";
+                in
+                {
+                  type = "app";
+                  program = toString (
+                    pkgs.writers.writeBash "snapshot-${configName}" ''
+                      echo "📸 Generating snapshot for ${configName}..."
+                      if [[ -e ${outputFile} ]]; then rm -f ${outputFile}; fi
+                      cp ${config} ${outputFile}
+                      ${snapshotTool}/bin/snapshot "${configName}" --test-dir . --write
+                    ''
+                  );
+                };
+            }) testConfigurations
+          );
         in
-        individualApps // buildAllApp // testApps // testAllBuildsApp // testAllApp // errorBuildApps // errorTestApps // testAllErrorsApp;
+        individualApps // buildAllApp // testApps // testAllBuildsApp // testAllApp // errorBuildApps // errorTestApps // testAllErrorsApp // snapshotApps;
     in
     {
       apps = forEachSystem ({ system, pkgs }: generateBuildApps { inherit pkgs system; });
