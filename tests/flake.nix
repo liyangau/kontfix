@@ -107,10 +107,11 @@
 
               # Try to build (should fail)
               echo "🔨 Attempting to build ${configName} (expecting failure)..."
-              build_output=$(nix run .#build-error-${configName} 2>&1 || true)
+              build_output=$(nix run .#build-error-${configName} 2>&1)
+              build_exit=$?
 
               # Check if build actually failed
-              if nix run .#build-error-${configName} 2>/dev/null; then
+              if [[ $build_exit -eq 0 ]]; then
                 echo "❌ Build succeeded but should have failed!"
                 exit 1
               fi
@@ -314,10 +315,11 @@
 
                 # Try to build (should fail)
                 echo "🔨 Attempting to build $config (expecting failure)..."
-                build_output=$(nix run .#build-error-$config 2>&1 || true)
+                build_output=$(nix run .#build-error-$config 2>&1)
+                build_exit=$?
 
                 # Check if build actually failed
-                if nix run .#build-error-$config 2>/dev/null; then
+                if [[ $build_exit -eq 0 ]]; then
                   echo "❌ Build succeeded but should have failed!"
                   TEST_FAILED=1
                   continue
@@ -447,10 +449,11 @@
 
                   # Try to build (should fail)
                   echo "🔨 Attempting to build $config (expecting failure)..."
-                  build_output=$(nix run .#build-error-$config 2>&1 || true)
+                  build_output=$(nix run .#build-error-$config 2>&1)
+                  build_exit=$?
 
                   # Check if build actually failed
-                  if nix run .#build-error-$config 2>/dev/null; then
+                  if [[ $build_exit -eq 0 ]]; then
                     echo "❌ Build succeeded but should have failed!"
                     ERROR_TEST_FAILED=1
                     continue
