@@ -112,6 +112,7 @@
           type = "app";
           program = toString (
             pkgs.writers.writeBash "test-error-${configName}" ''
+              [[ ! -d "expected-results" ]] && [[ -d "tests/expected-results" ]] && cd tests
               echo "🧪 Testing error case: ${configName}"
 
               # Check if expected error file exists
@@ -189,6 +190,7 @@
           type = "app";
           program = toString (
             pkgs.writers.writeBash "test-${configName}" ''
+              [[ ! -d "expected-results" ]] && [[ -d "tests/expected-results" ]] && cd tests
               echo "🧪 Testing ${configName} configuration..."
 
               # Build first
@@ -225,6 +227,7 @@
           type = "app";
           program = toString (
             pkgs.writers.writeBash "test-all-builds" ''
+              [[ ! -d "expected-results" ]] && [[ -d "tests/expected-results" ]] && cd tests
               echo "🚀 Building all test configurations..."
 
               # Build all configurations sequentially
@@ -288,6 +291,7 @@
           type = "app";
           program = toString (
             pkgs.writers.writeBash "test-all-errors" ''
+              [[ ! -d "expected-results" ]] && [[ -d "tests/expected-results" ]] && cd tests
               echo "🚀 Testing all error case configurations..."
 
               if [[ -z "${nixpkgs.lib.concatStringsSep " " errorTestConfigurations}" ]]; then
@@ -356,6 +360,7 @@
           type = "app";
           program = toString (
             pkgs.writers.writeBash "test-all" ''
+              [[ ! -d "expected-results" ]] && [[ -d "tests/expected-results" ]] && cd tests
               echo "🚀 Running comprehensive test suite..."
 
               echo ""
@@ -479,6 +484,7 @@
           type = "app";
           program = toString (
             pkgs.writers.writeBash "build-all" ''
+              [[ ! -d "expected-results" ]] && [[ -d "tests/expected-results" ]] && cd tests
               echo "🚀 Building all test configurations sequentially..."
 
               # Build configurations sequentially
