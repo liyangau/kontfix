@@ -159,86 +159,69 @@ rec {
   createFilteredControlPlaneCollections =
     taggedValidatedControlPlanes:
     let
-      # O(1) tag-based filters - no more iterations!
       pkiCertControlPlanes = filterByTag "pkiAndCert" taggedValidatedControlPlanes;
       pinnedCertControlPlanes = filterByTag "pinnedAndCert" taggedValidatedControlPlanes;
-
-      # Storage-based filters (still O(1) lookups)
-      hcvStorageControlPlanes = filterByStorageTag {
-        taggedControlPlanes = taggedValidatedControlPlanes;
-        backend = "hcv";
-      };
-      awsStorageControlPlanes = filterByStorageTag {
-        taggedControlPlanes = taggedValidatedControlPlanes;
-        backend = "aws";
-        requireEnabled = true;
-      };
-      localStorageControlPlanes = filterByStorageTag {
-        taggedControlPlanes = taggedValidatedControlPlanes;
-        backend = "local";
-      };
-
-      # Individual system account filters
       individualSystemAccountPlanes = filterByTag "systemAccountEnabled" taggedValidatedControlPlanes;
-
-      # Other O(1) filters
       outputEnabledControlPlanes = filterAttrs (_: cp: cp.output or false) taggedValidatedControlPlanes;
       storageRequiredControlPlanes = filterByTag "needsStorage" taggedValidatedControlPlanes;
-
-      # AWS-specific filters (still O(1))
       awsProviderRequiredControlPlanes = filterAttrs (
         _: cp: cp.tags.usesAws || cp.tags.awsEnabled
       ) taggedValidatedControlPlanes;
       awsEnabledControlPlanes = filterByTag "awsEnabled" taggedValidatedControlPlanes;
       awsEnabledWithStorage = filterByTag "awsStorageEnabled" taggedValidatedControlPlanes;
-
-      # HCV PKI backend filter (control planes that create certs with HCV PKI)
       hcvPkiCertControlPlanes = filterByTag "hcvPkiAndCert" taggedValidatedControlPlanes;
 
-      # Combined storage + cert type filters (still O(1) - just chaining O(1) operations)
-      awsStoragePkiCertControlPlanes = filterByTag "pkiAndCert" awsStorageControlPlanes;
-      awsStoragePinnedCertControlPlanes = filterByTag "pinnedAndCert" awsStorageControlPlanes;
-      awsStorageSysAccountControlPlanes = filterByTag "systemAccountWithToken" awsStorageControlPlanes;
-      awsStorageClusterConfigOnlyControlPlanes = filterByTag "clusterConfigOnly" awsStorageControlPlanes;
+      # Data-driven per-backend storage collections
+      storageBackendConfigs = [
+        { name = "hcv"; requireEnabled = false; }
+        { name = "aws"; requireEnabled = true; }
+        { name = "local"; requireEnabled = false; }
+      ];
+      storageSubTypes = [
+        { suffix = "PkiCert"; tag = "pkiAndCert"; }
+        { suffix = "PinnedCert"; tag = "pinnedAndCert"; }
+        { suffix = "SysAccount"; tag = "systemAccountWithToken"; }
+        { suffix = "ClusterConfigOnly"; tag = "clusterConfigOnly"; }
+      ];
 
-      hcvStoragePkiCertControlPlanes = filterByTag "pkiAndCert" hcvStorageControlPlanes;
-      hcvStoragePinnedCertControlPlanes = filterByTag "pinnedAndCert" hcvStorageControlPlanes;
-      hcvStorageSysAccountControlPlanes = filterByTag "systemAccountWithToken" hcvStorageControlPlanes;
-      hcvStorageClusterConfigOnlyControlPlanes = filterByTag "clusterConfigOnly" hcvStorageControlPlanes;
+      # Base storage collections: hcvStorageControlPlanes, awsStorageControlPlanes, localStorageControlPlanes
+      baseStorageCollections = listToAttrs (
+        map (cfg: {
+          name = "${cfg.name}StorageControlPlanes";
+          value = filterByStorageTag {
+            taggedControlPlanes = taggedValidatedControlPlanes;
+            backend = cfg.name;
+            requireEnabled = cfg.requireEnabled;
+          };
+        }) storageBackendConfigs
+      );
 
-      localStoragePkiCertControlPlanes = filterByTag "pkiAndCert" localStorageControlPlanes;
-      localStoragePinnedCertControlPlanes = filterByTag "pinnedAndCert" localStorageControlPlanes;
-      localStorageSysAccountControlPlanes = filterByTag "systemAccountWithToken" localStorageControlPlanes;
-      localStorageClusterConfigOnlyControlPlanes = filterByTag "clusterConfigOnly" localStorageControlPlanes;
+      # Per-type collections: {backend}Storage{Type}ControlPlanes for each backend × type
+      perTypeCollections = listToAttrs (
+        concatMap (cfg:
+          let base = baseStorageCollections."${cfg.name}StorageControlPlanes";
+          in map (sub: {
+            name = "${cfg.name}Storage${sub.suffix}ControlPlanes";
+            value = filterByTag sub.tag base;
+          }) storageSubTypes
+        ) storageBackendConfigs
+      );
     in
     {
       inherit
         pkiCertControlPlanes
         pinnedCertControlPlanes
-        hcvStorageControlPlanes
-        awsStorageControlPlanes
-        localStorageControlPlanes
         individualSystemAccountPlanes
         outputEnabledControlPlanes
         storageRequiredControlPlanes
         awsProviderRequiredControlPlanes
         awsEnabledControlPlanes
         awsEnabledWithStorage
-        awsStoragePkiCertControlPlanes
-        awsStoragePinnedCertControlPlanes
-        awsStorageSysAccountControlPlanes
-        awsStorageClusterConfigOnlyControlPlanes
         hcvPkiCertControlPlanes
-        hcvStoragePkiCertControlPlanes
-        hcvStoragePinnedCertControlPlanes
-        hcvStorageSysAccountControlPlanes
-        hcvStorageClusterConfigOnlyControlPlanes
-        localStoragePkiCertControlPlanes
-        localStoragePinnedCertControlPlanes
-        localStorageSysAccountControlPlanes
-        localStorageClusterConfigOnlyControlPlanes
         ;
-    };
+    }
+    // baseStorageCollections
+    // perTypeCollections;
 
   # Core control plane processing functions
   flattenControlPlanes =
