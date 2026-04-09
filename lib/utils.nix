@@ -552,38 +552,6 @@ rec {
     };
 
   # ============================================================================
-  # Optimized Accessor Functions - Work with pre-computed context
-  # ============================================================================
-
-  # NEW: Functions that work with already-processed context (no re-processing)
-  getControlPlanesFromContext = context: context.validatedControlPlanes;
-
-  getCertificateControlPlanesFromContext =
-    { context, authType }:
-    if authType == authTypes.pki then
-      context.pkiCertControlPlanes
-    else if authType == authTypes.pinned then
-      context.pinnedCertControlPlanes
-    else
-      throw "Invalid authType: ${authType}. Use '${authTypes.pki}' or '${authTypes.pinned}'.";
-
-  getStorageControlPlanesFromContext =
-    { context, backend }:
-    let
-      backendToCollection = {
-        hcv = context.hcvStorageControlPlanes;
-        aws = context.awsStorageControlPlanes;
-        local = context.localStorageControlPlanes;
-      };
-    in
-    if !(elem backend supportedStorageBackends) then
-      throw "Invalid storage backend '${backend}'. Supported backends: ${concatStringsSep ", " supportedStorageBackends}"
-    else
-      backendToCollection.${backend};
-
-  getSystemAccountControlPlanesFromContext = context: context.individualSystemAccountPlanes;
-
-  # ============================================================================
   # Group Processing
   # ============================================================================
 
