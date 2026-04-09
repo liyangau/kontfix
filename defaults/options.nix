@@ -26,6 +26,18 @@ with lib;
             description = "Default AWS profile (creates aws_profile variable with this default if provided)";
           };
         };
+        local = {
+          cp_prefix = mkOption {
+            type = types.str;
+            default = "";
+            description = "Optional base directory prefix for local control plane storage files (e.g. \"kontfix\" → files stored under kontfix/certs/, kontfix/tokens/, kontfix/clusters/)";
+          };
+          group_prefix = mkOption {
+            type = types.str;
+            default = "";
+            description = "Optional base directory prefix for local group storage files";
+          };
+        };
         hcv = {
           cp_prefix = mkOption {
             type = types.str;

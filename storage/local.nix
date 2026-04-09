@@ -2,6 +2,7 @@
   config,
   lib,
   sharedContext,
+  storageDefaults,
   ...
 }:
 
@@ -9,6 +10,8 @@ with lib;
 
 let
   cps = config.kontfix.controlPlanes;
+  cpBase = if storageDefaults.local.cp_prefix != "" then "${storageDefaults.local.cp_prefix}/" else "";
+  groupBase = if storageDefaults.local.group_prefix != "" then "${storageDefaults.local.group_prefix}/" else "";
   localStorageControlPlanes = sharedContext.localStorageControlPlanes;
   localStorageGroups = sharedContext.localStorageGroups;
   localStoragePkiCertControlPlanes = sharedContext.localStoragePkiCertControlPlanes;
@@ -28,7 +31,7 @@ in
             provisioner = [
               {
                 local-exec = {
-                  command = "mkdir -p \${path.module}/certs && chmod 700 \${path.module}/certs";
+                  command = "mkdir -p \${path.module}/${cpBase}certs && chmod 700 \${path.module}/${cpBase}certs";
                 };
               }
             ];
@@ -40,7 +43,7 @@ in
             provisioner = [
               {
                 local-exec = {
-                  command = "mkdir -p \${path.module}/tokens && chmod 700 \${path.module}/tokens";
+                  command = "mkdir -p \${path.module}/${cpBase}tokens && chmod 700 \${path.module}/${cpBase}tokens";
                 };
               }
             ];
@@ -52,7 +55,7 @@ in
             provisioner = [
               {
                 local-exec = {
-                  command = "mkdir -p \${path.module}/clusters && chmod 700 \${path.module}/clusters";
+                  command = "mkdir -p \${path.module}/${cpBase}clusters && chmod 700 \${path.module}/${cpBase}clusters";
                 };
               }
             ];
@@ -65,7 +68,7 @@ in
         name: cp:
         nameValuePair "${name}_pinned_cert" {
           content = "\${tls_self_signed_cert.${name}.cert_pem}";
-          filename = "\${path.module}/certs/${name}/cert.pem";
+          filename = "\${path.module}/${cpBase}certs/${name}/cert.pem";
           file_permission = "0444";
           directory_permission = "0755";
           depends_on = [ "null_resource.create_cert_dir" ];
@@ -83,7 +86,7 @@ in
         name: cp:
         nameValuePair "${name}_pinned_key" {
           content = "\${tls_private_key.${name}.private_key_pem}";
-          filename = "\${path.module}/certs/${name}/key.pem";
+          filename = "\${path.module}/${cpBase}certs/${name}/key.pem";
           file_permission = "0444";
           directory_permission = "0755";
           depends_on = [ "null_resource.create_cert_dir" ];
@@ -95,7 +98,7 @@ in
         name: cp:
         nameValuePair "${name}_pki_cert" {
           content = "\${vault_pki_secret_backend_cert.${name}.certificate}";
-          filename = "\${path.module}/certs/${name}/cert.pem";
+          filename = "\${path.module}/${cpBase}certs/${name}/cert.pem";
           file_permission = "0444";
           directory_permission = "0755";
           depends_on = [ "null_resource.create_cert_dir" ];
@@ -106,7 +109,7 @@ in
         name: cp:
         nameValuePair "${name}_pki_key" {
           content = "\${vault_pki_secret_backend_cert.${name}.private_key}";
-          filename = "\${path.module}/certs/${name}/key.pem";
+          filename = "\${path.module}/${cpBase}certs/${name}/key.pem";
           file_permission = "0444";
           directory_permission = "0755";
           depends_on = [ "null_resource.create_cert_dir" ];
@@ -123,7 +126,7 @@ in
             expires_at = konnect_system_account_access_token.${name}.expires_at
             created_at = konnect_system_account_access_token.${name}.created_at
           })}";
-          filename = "\${path.module}/tokens/${cp.region}_cp_${cp.originalName}.json";
+          filename = "\${path.module}/${cpBase}tokens/${cp.region}_cp_${cp.originalName}.json";
           file_permission = "0444";
           directory_permission = "0755";
           depends_on = [ "null_resource.create_token_dir" ];
@@ -142,7 +145,7 @@ in
             created_at = konnect_system_account_access_token.${group.groupName}.created_at
             members = ${builtins.toJSON group.groupConfig.members}
           })}";
-            filename = "\${path.module}/tokens/${group.regionName}_group_${group.originalName}.json";
+            filename = "\${path.module}/${groupBase}tokens/${group.regionName}_group_${group.originalName}.json";
             file_permission = "0444";
             directory_permission = "0755";
             depends_on = [ "null_resource.create_token_dir" ];
@@ -172,7 +175,7 @@ in
             CP_REGION=${cp.region}
             CP_NAME=${cp.originalName}
           '';
-          filename = "\${path.module}/clusters/${name}";
+          filename = "\${path.module}/${cpBase}clusters/${name}";
           file_permission = "0444";
           directory_permission = "0755";
           depends_on = [ "null_resource.create_clusters_dir" ];
