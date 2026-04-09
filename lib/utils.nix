@@ -520,18 +520,6 @@ rec {
     }
     // createFilteredControlPlaneCollections taggedValidatedControlPlanes;
 
-  # Helper function to convert validated groups back to groups structure for getGroupsWithStorage
-  groupsFromValidated =
-    validatedGroups:
-    listToAttrs (
-      map (group: {
-        name = group.regionName;
-        value = {
-          ${group.originalName} = group.groupConfig;
-        };
-      }) validatedGroups
-    );
-
   # ============================================================================
   # Shared Context - Process once, use many times
   # ============================================================================
@@ -631,22 +619,6 @@ rec {
     in
     {
       inherit flattenedGroups validatedGroups storageRequiredGroups;
-
-      # Storage-specific filters using consolidated function
-      awsStorageGroups = getGroupsWithStorage {
-        groups = groups;
-        backend = "aws";
-      };
-
-      hcvStorageGroups = getGroupsWithStorage {
-        inherit groups;
-        backend = "hcv";
-      };
-
-      localStorageGroups = getGroupsWithStorage {
-        inherit groups;
-        backend = "local";
-      };
     };
 
   flattenGroups =
@@ -662,23 +634,6 @@ rec {
         }) regionGroups
       ) groups
     );
-
-  getGroupsWithStorage =
-    { groups, backend }:
-    let
-      flattened = flattenGroups groups;
-
-      # Generic group filter (similar to makeStorageFilter but for groups)
-      groupStorageFilter =
-        group:
-        elem backend group.groupConfig.storage_backend
-        && group.groupConfig.generate_token
-        && (if backend == "aws" then (group.groupConfig.aws.enable or false) else true);
-    in
-    if !(elem backend supportedStorageBackends) then
-      throw "Invalid storage backend '${backend}'. Supported backends: ${concatStringsSep ", " supportedStorageBackends}"
-    else
-      filter groupStorageFilter flattened;
 
   # Validation function for self-signed certificate configuration
   validateSelfSignedCertConfig =
