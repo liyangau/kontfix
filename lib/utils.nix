@@ -273,9 +273,10 @@ rec {
     if invalidReferences != [ ] then
       let
         firstError = head invalidReferences;
+        errorCp = allControlPlanes.${firstError.name};
         membersList = concatStringsSep ", " firstError.invalidMembers;
       in
-      throw "Control plane group '${firstError.name}' can not have control plane groups '${membersList}' as its member. Groups members can only be individual control planes."
+      throw "Control plane group '${errorCp.region}/${errorCp.originalName}' can not have control plane groups '${membersList}' as its member. Groups members can only be individual control planes."
     else
       allControlPlanes;
 
@@ -349,27 +350,27 @@ rec {
       pkiBackendValid = !usesPkiAuth || !createsCert || (elem cp.pki_backend supportedPkiBackend);
     in
     if !membersTypeValid then
-      throw "Control plane '${cp.originalName}' has members ${toString cp.members} but cluster_type is not CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+      throw "Control plane '${cp.region}/${cp.originalName}' has members ${toString cp.members} but cluster_type is not CLUSTER_TYPE_CONTROL_PLANE_GROUP"
     else if !membersDefined then
-      throw "Control plane group '${cp.originalName}' references undefined members: ${toString undefinedMembers}"
+      throw "Control plane group '${cp.region}/${cp.originalName}' references undefined members: ${toString undefinedMembers}"
     else if !membersCertValid then
-      throw "Control plane group '${cp.originalName}' member ${toString invalidCertMembers} has create_certificate = true"
+      throw "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidCertMembers} has create_certificate = true"
     else if !membersStoreConfigValid then
-      throw "Control plane group '${cp.originalName}' member ${toString invalidStoreConfigMembers} has store_cluster_config = true"
+      throw "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidStoreConfigMembers} has store_cluster_config = true"
     else if !groupSystemAccountValid then
-      throw "Control plane group '${cp.originalName}' cannot have system_account.enable = true"
+      throw "Control plane group '${cp.region}/${cp.originalName}' cannot have system_account.enable = true"
     else if !groupPluginsValid then
-      throw "Control plane group '${cp.originalName}' cannot have custom_plugins defined."
+      throw "Control plane group '${cp.region}/${cp.originalName}' cannot have custom_plugins defined."
     else if !awsTagsValid then
-      throw "Control plane '${cp.originalName}' uses AWS backend but aws.tags is not defined or empty"
+      throw "Control plane '${cp.region}/${cp.originalName}' uses AWS backend but aws.tags is not defined or empty"
     else if !k8sAuthValid then
-      throw "Control plane '${cp.originalName}' with cluster_type 'CLUSTER_TYPE_K8S_INGRESS_CONTROLLER' must have auth_type 'pinned_client_certs' but got '${cp.auth_type}'"
+      throw "Control plane '${cp.region}/${cp.originalName}' with cluster_type 'CLUSTER_TYPE_K8S_INGRESS_CONTROLLER' must have auth_type 'pinned_client_certs' but got '${cp.auth_type}'"
     else if !awsStorageValid then
-      throw "Control plane '${cp.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
+      throw "Control plane '${cp.region}/${cp.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
     else if !regionValid then
-      throw "Control plane '${cp.originalName}' has invalid region '${cp.region}'. Allowed regions are: ${concatStringsSep ", " allowedRegions}"
+      throw "Control plane '${cp.region}/${cp.originalName}' has invalid region '${cp.region}'. Allowed regions are: ${concatStringsSep ", " allowedRegions}"
     else if !pkiBackendValid then
-      throw "Control plane '${cp.originalName}' has unsupported pki_backend '${cp.pki_backend}'. Supported backends: ${concatStringsSep ", " supportedPkiBackend}"
+      throw "Control plane '${cp.region}/${cp.originalName}' has unsupported pki_backend '${cp.pki_backend}'. Supported backends: ${concatStringsSep ", " supportedPkiBackend}"
     else
       cp;
 
@@ -396,9 +397,9 @@ rec {
       hcvPkiAddressValid = !usesHcvPki || (defaults.pki.hcv.address or "") != "";
     in
     if !hcvStorageAddressValid then
-      throw "Control plane '${cp.originalName}' uses HCV storage backend but defaults.storage.hcv.address is not configured. Please set kontfix.defaults.storage.hcv.address"
+      throw "Control plane '${cp.region}/${cp.originalName}' uses HCV storage backend but defaults.storage.hcv.address is not configured. Please set kontfix.defaults.storage.hcv.address"
     else if !hcvPkiAddressValid then
-      throw "Control plane '${cp.originalName}' uses HCV PKI backend but defaults.pki.hcv.address is not configured. Please set kontfix.defaults.pki.hcv.address"
+      throw "Control plane '${cp.region}/${cp.originalName}' uses HCV PKI backend but defaults.pki.hcv.address is not configured. Please set kontfix.defaults.pki.hcv.address"
     else
       cp;
 
@@ -443,9 +444,9 @@ rec {
       computedAwsProfile = nullIfEmpty (groupConfig.aws.profile or "");
     in
     if !awsTagsValid then
-      throw "Group '${group.originalName}' uses AWS backend but aws.tags is not defined or empty"
+      throw "Group '${group.regionName}/${group.originalName}' uses AWS backend but aws.tags is not defined or empty"
     else if !awsStorageValid then
-      throw "Group '${group.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
+      throw "Group '${group.regionName}/${group.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
     else
       group // { inherit computedAwsRegion computedAwsProfile; };
 
