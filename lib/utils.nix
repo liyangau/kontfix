@@ -681,43 +681,6 @@ rec {
     else
       filter groupStorageFilter flattened;
 
-  filterStorageRequiredGroups =
-    groups:
-    let
-      flattened = flattenGroups groups;
-    in
-    filter (group: group.groupConfig.generate_token or false) flattened;
-
-  # ============================================================================
-  # Group Validation
-  # ============================================================================
-
-  validateGroups =
-    { controlPlanes, groups }:
-    let
-      # Get all control plane names by region
-      controlPlanesByRegion = mapAttrs (region: cps: attrNames cps) controlPlanes;
-
-      # Validate each group's member references
-      validateGroupMembers =
-        region: groupName: group:
-        let
-          availableControlPlanes = controlPlanesByRegion.${region} or [ ];
-          undefinedMembers = filter (member: !(elem member availableControlPlanes)) group.members;
-        in
-        if undefinedMembers != [ ] then
-          throw "Group '${region}.${groupName}' references undefined control plane members: [${concatStringsSep ", " undefinedMembers}]. Available control planes in region '${region}': [${concatStringsSep ", " availableControlPlanes}]"
-        else
-          group;
-
-      # Validate all groups in all regions
-      validateAllGroups = mapAttrs (
-        region: regionGroups:
-        mapAttrs (groupName: group: validateGroupMembers region groupName group) regionGroups
-      ) groups;
-    in
-    validateAllGroups;
-
   # Validation function for self-signed certificate configuration
   validateSelfSignedCertConfig =
     selfSignedCertConfig:
