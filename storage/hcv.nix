@@ -130,7 +130,8 @@ in
           mount = storageDefaults.hcv.cp_prefix;
           name = "${cp.region}/${cp.originalName}/system-token";
           data_json = "\${jsonencode({
-            data = konnect_system_account_access_token.${name}.token
+            token = konnect_system_account_access_token.${name}.token
+            api_addr = \"https://${cp.region}.api.konghq.com\"
             expires_at = konnect_system_account_access_token.${name}.expires_at
             created_at = konnect_system_account_access_token.${name}.created_at
           })}";
@@ -149,7 +150,8 @@ in
             mount = storageDefaults.hcv.group_prefix;
             name = "${group.regionName}/${group.groupName}/system-token";
             data_json = "\${jsonencode({
-            data = konnect_system_account_access_token.${group.groupName}.token
+            token = konnect_system_account_access_token.${group.groupName}.token
+            api_addr = \"https://${group.regionName}.api.konghq.com\"
             expires_at = konnect_system_account_access_token.${group.groupName}.expires_at
             created_at = konnect_system_account_access_token.${group.groupName}.created_at
             members = ${builtins.toJSON group.groupConfig.members}

@@ -169,6 +169,8 @@ in
           secret_id = "\${aws_secretsmanager_secret.${name}_system_token.id}";
           secret_string = "\${jsonencode({
           token = konnect_system_account_access_token.${name}.token
+          api_addr = \"https://${cp.region}.api.konghq.com\"
+          private_api_addr = \"\${substr(${if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com/api/\"
           expires_at = konnect_system_account_access_token.${name}.expires_at
           created_at = konnect_system_account_access_token.${name}.created_at
           })}";
@@ -184,6 +186,8 @@ in
             secret_id = "\${aws_secretsmanager_secret.${group.groupName}_group_system_token.id}";
             secret_string = "\${jsonencode({
             token = konnect_system_account_access_token.${group.groupName}.token
+            api_addr = \"https://${group.regionName}.api.konghq.com\"
+            private_api_addr = \"\${substr(${if group.computedAwsRegion != null then "\"${group.computedAwsRegion}\"" else "var.aws_region"}, 0, 2)}.svc.konghq.com/api/\"
             expires_at = konnect_system_account_access_token.${group.groupName}.expires_at
             created_at = konnect_system_account_access_token.${group.groupName}.created_at
             members = ${builtins.toJSON group.groupConfig.members}
