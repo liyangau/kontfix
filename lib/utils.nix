@@ -45,6 +45,10 @@ rec {
   # Helper Functions
   # ============================================================================
 
+  # Returns null when the string is empty, otherwise the string itself.
+  # Used to normalise optional config fields where null means "use Terraform variable".
+  nullIfEmpty = s: if s != "" then s else null;
+
   # Single-pass tagging for O(n) performance
   # Tags control planes once, then filters become O(1) lookups
   tagControlPlanes =
@@ -69,19 +73,9 @@ rec {
           createsCert || storesClusterConfig || (systemAccountEnabled && systemAccountGenToken);
         
         # Normalize AWS region and profile: use cp.aws values if defined, otherwise fallback to variables
-        # This is needed for computing private URLs in AWS storage backend and generating variables
         # null means use var.aws_region or var.aws_profile
-        computedAwsRegion = 
-          if (cp.aws.region or "") != "" then 
-            cp.aws.region 
-          else 
-            null;  # null means use var.aws_region
-        
-        computedAwsProfile = 
-          if (cp.aws.profile or "") != "" then 
-            cp.aws.profile 
-          else 
-            null;  # null means use var.aws_profile
+        computedAwsRegion = nullIfEmpty (cp.aws.region or "");
+        computedAwsProfile = nullIfEmpty (cp.aws.profile or "");
       in
       cp
       // {
@@ -355,7 +349,7 @@ rec {
       pkiBackendValid = !usesPkiAuth || !createsCert || (elem cp.pki_backend supportedPkiBackend);
     in
     if !membersTypeValid then
-      throw "Control plane '${name}' has members ${toString cp.members} but cluster_type is not CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+      throw "Control plane '${cp.originalName}' has members ${toString cp.members} but cluster_type is not CLUSTER_TYPE_CONTROL_PLANE_GROUP"
     else if !membersDefined then
       throw "Control plane group '${cp.originalName}' references undefined members: ${toString undefinedMembers}"
     else if !membersCertValid then
@@ -402,9 +396,9 @@ rec {
       hcvPkiAddressValid = !usesHcvPki || (defaults.pki.hcv.address or "") != "";
     in
     if !hcvStorageAddressValid then
-      throw "Control plane '${name}' uses HCV storage backend but defaults.storage.hcv.address is not configured. Please set kontfix.defaults.storage.hcv.address"
+      throw "Control plane '${cp.originalName}' uses HCV storage backend but defaults.storage.hcv.address is not configured. Please set kontfix.defaults.storage.hcv.address"
     else if !hcvPkiAddressValid then
-      throw "Control plane '${name}' uses HCV PKI backend but defaults.pki.hcv.address is not configured. Please set kontfix.defaults.pki.hcv.address"
+      throw "Control plane '${cp.originalName}' uses HCV PKI backend but defaults.pki.hcv.address is not configured. Please set kontfix.defaults.pki.hcv.address"
     else
       cp;
 
@@ -445,13 +439,13 @@ rec {
       awsStorageValid = !usesAws || awsEnabled;
 
       # Compute AWS region and profile (null if not defined)
-      computedAwsRegion = if groupConfig.aws.region or "" != "" then groupConfig.aws.region else null;
-      computedAwsProfile = if groupConfig.aws.profile or "" != "" then groupConfig.aws.profile else null;
+      computedAwsRegion = nullIfEmpty (groupConfig.aws.region or "");
+      computedAwsProfile = nullIfEmpty (groupConfig.aws.profile or "");
     in
     if !awsTagsValid then
-      throw "Group '${group.groupName}' uses AWS backend but aws.tags is not defined or empty"
+      throw "Group '${group.originalName}' uses AWS backend but aws.tags is not defined or empty"
     else if !awsStorageValid then
-      throw "Group '${group.groupName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
+      throw "Group '${group.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
     else
       group // { inherit computedAwsRegion computedAwsProfile; };
 
@@ -464,33 +458,22 @@ rec {
     {
       cps,
       defaultLabels ? { },
-      validation ? true,
-      defaults ? config.kontfix.defaults, # Explicit parameter for validation
+      defaults ? config.kontfix.defaults,
     }:
     let
       flattenedControlPlanes = flattenControlPlanes cps;
       allControlPlaneNames = map (cp: cp.originalName) (builtins.attrValues flattenedControlPlanes);
       controlPlanesWithLabels = processControlPlanesWithLabels flattenedControlPlanes defaultLabels;
 
-      # Apply validation if requested (simple group validation first!)
-      validatedControlPlanes =
-        if validation then
-          let
-            # First, validate that groups don't reference other groups
-            planesWithoutGroupReferences = validateNoGroupReferences controlPlanesWithLabels;
-
-            # Then apply individual control plane validation
-            individuallyValidated = mapAttrs (
-              name: cp:
-              validateControlPlane {
-                inherit name cp defaults;
-                allControlPlanes = planesWithoutGroupReferences; # Fixed: Pass full attrset
-              }
-            ) planesWithoutGroupReferences;
-          in
-          individuallyValidated
-        else
-          controlPlanesWithLabels;
+      # Validate: check group references first, then individual control planes
+      planesWithoutGroupReferences = validateNoGroupReferences controlPlanesWithLabels;
+      validatedControlPlanes = mapAttrs (
+        name: cp:
+        validateControlPlane {
+          inherit name cp defaults;
+          allControlPlanes = planesWithoutGroupReferences;
+        }
+      ) planesWithoutGroupReferences;
 
       # Tag validated control planes for O(1) filtering
       taggedValidatedControlPlanes = tagControlPlanes validatedControlPlanes;
