@@ -131,6 +131,7 @@ in
       _module.args = {
         storageDefaults = cfg.defaults.storage;
         inherit utils;
+        makeClusterConfigFields = utils.makeClusterConfigFields;
         # Pass the processed context so submodules can use it too
         sharedContext = processed;
       };

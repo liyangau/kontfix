@@ -3,6 +3,7 @@
   lib,
   sharedContext,
   storageDefaults,
+  makeClusterConfigFields,
   ...
 }:
 
@@ -84,7 +85,6 @@ in
         name: cp:
         let
           awsRegionExpr = if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region";
-          cpPrefixExpr = "regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]";
         in
         nameValuePair "${name}_pki_cluster_version" {
           provider = "aws.${cp.region}-${cp.originalName}";
@@ -96,15 +96,7 @@ in
           issuing_ca = vault_pki_secret_backend_cert.${name}.issuing_ca
           cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
           telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
-          cluster_prefix = ${cpPrefixExpr}
-          cluster_control_plane = \"\${${cpPrefixExpr}}.${cp.region}.cp.konghq.com:443\"
-          cluster_server_name = \"\${${cpPrefixExpr}}.${cp.region}.cp.konghq.com\"
-          cluster_telemetry_endpoint = \"\${${cpPrefixExpr}}.${cp.region}.tp.konghq.com:443\"
-          cluster_telemetry_server_name = \"\${${cpPrefixExpr}}.${cp.region}.tp.konghq.com\"
-          private_cluster_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com/cp/\${${cpPrefixExpr}}\"
-          private_telemetry_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com:443/tp/\${${cpPrefixExpr}}\"
-          private_cluster_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\"
-          private_cluster_telemetry_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\"
+          ${makeClusterConfigFields { inherit name; region = cp.region; awsRegionExpr = awsRegionExpr; }}
           })}";
         }
       ) awsStoragePkiCertControlPlanes)
@@ -114,7 +106,6 @@ in
         name: cp:
         let
           awsRegionExpr = if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region";
-          cpPrefixExpr = "regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]";
         in
         nameValuePair "${name}_pinned_cluster_version" {
           provider = "aws.${cp.region}-${cp.originalName}";
@@ -126,15 +117,7 @@ in
           issuing_ca = tls_self_signed_cert.${name}.cert_pem
           cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
           telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
-          cluster_prefix = ${cpPrefixExpr}
-          cluster_control_plane = \"\${${cpPrefixExpr}}.${cp.region}.cp.konghq.com:443\"
-          cluster_server_name = \"\${${cpPrefixExpr}}.${cp.region}.cp.konghq.com\"
-          cluster_telemetry_endpoint = \"\${${cpPrefixExpr}}.${cp.region}.tp.konghq.com:443\"
-          cluster_telemetry_server_name = \"\${${cpPrefixExpr}}.${cp.region}.tp.konghq.com\"
-          private_cluster_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com/cp/\${${cpPrefixExpr}}\"
-          private_telemetry_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com:443/tp/\${${cpPrefixExpr}}\"
-          private_cluster_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\"
-          private_cluster_telemetry_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\"
+          ${makeClusterConfigFields { inherit name; region = cp.region; awsRegionExpr = awsRegionExpr; }}
           })}";
           lifecycle = [
             {
@@ -151,7 +134,6 @@ in
         name: cp:
         let
           awsRegionExpr = if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region";
-          cpPrefixExpr = "regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]";
         in
         nameValuePair "${name}_cluster_config_only_version" {
           provider = "aws.${cp.region}-${cp.originalName}";
@@ -160,15 +142,7 @@ in
           cp_id = konnect_gateway_control_plane.${name}.id
           cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
           telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
-          cluster_prefix = ${cpPrefixExpr}
-          cluster_control_plane = \"\${${cpPrefixExpr}}.${cp.region}.cp.konghq.com:443\"
-          cluster_server_name = \"\${${cpPrefixExpr}}.${cp.region}.cp.konghq.com\"
-          cluster_telemetry_endpoint = \"\${${cpPrefixExpr}}.${cp.region}.tp.konghq.com:443\"
-          cluster_telemetry_server_name = \"\${${cpPrefixExpr}}.${cp.region}.tp.konghq.com\"
-          private_cluster_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com/cp/\${${cpPrefixExpr}}\"
-          private_telemetry_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com:443/tp/\${${cpPrefixExpr}}\"
-          private_cluster_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\"
-          private_cluster_telemetry_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\"
+          ${makeClusterConfigFields { inherit name; region = cp.region; awsRegionExpr = awsRegionExpr; }}
           })}";
         }
       ) awsStorageClusterConfigOnlyControlPlanes)

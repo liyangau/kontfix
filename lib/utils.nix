@@ -635,6 +635,33 @@ rec {
       ) groups
     );
 
+  # Generates the cluster topology fields shared across all storage backends.
+  # Returns a Nix string fragment to embed in a secret_string / data_json block.
+  # Covers: cluster_prefix, cluster_control_plane, cluster_server_name,
+  #   cluster_telemetry_endpoint, cluster_telemetry_server_name
+  # Plus private_* fields when awsRegionExpr is provided.
+  makeClusterConfigFields =
+    {
+      name,
+      region,
+      awsRegionExpr ? null,
+    }:
+    let
+      ind = "\n          ";
+      cpPfx = "regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]";
+    in
+    "cluster_prefix = ${cpPfx}"
+    + "${ind}cluster_control_plane = \"\${${cpPfx}}.${region}.cp.konghq.com:443\""
+    + "${ind}cluster_server_name = \"\${${cpPfx}}.${region}.cp.konghq.com\""
+    + "${ind}cluster_telemetry_endpoint = \"\${${cpPfx}}.${region}.tp.konghq.com:443\""
+    + "${ind}cluster_telemetry_server_name = \"\${${cpPfx}}.${region}.tp.konghq.com\""
+    + optionalString (awsRegionExpr != null) (
+      "${ind}private_cluster_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com/cp/\${${cpPfx}}\""
+      + "${ind}private_telemetry_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com:443/tp/\${${cpPfx}}\""
+      + "${ind}private_cluster_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\""
+      + "${ind}private_cluster_telemetry_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\""
+    );
+
   # Validation function for self-signed certificate configuration
   validateSelfSignedCertConfig =
     selfSignedCertConfig:
