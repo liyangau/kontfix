@@ -176,7 +176,7 @@ in
           file_permission = "0444";
           directory_permission = "0755";
           depends_on = [ "null_resource.create_clusters_dir" ];
-          lifecycle = mkIf (localStoragePinnedCertControlPlanes ? name) [
+          lifecycle = mkIf (localStoragePinnedCertControlPlanes ? "${name}") [
             {
               replace_triggered_by = [
                 "time_rotating.${name}_cert"
