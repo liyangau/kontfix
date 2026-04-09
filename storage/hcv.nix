@@ -36,24 +36,15 @@ in
           ) hcvStorageControlPlanes)
 
           # Group policies
-          (mapAttrs'
-            (
-              name: group:
+          (listToAttrs (
+            map (group:
               lib.nameValuePair "konnect_${group.groupName}_readonly" {
                 provider = "vault.storage";
                 name = "konnect_${group.groupName}_readonly";
                 policy = "\${data.vault_policy_document.${group.groupName}_readonly.hcl}";
               }
-            )
-            (
-              listToAttrs (
-                map (group: {
-                  name = group.groupName;
-                  value = group;
-                }) hcvStorageGroups
-              )
-            )
-          )
+            ) hcvStorageGroups
+          ))
         ]);
 
     # Vault policy documents for HCV storage backend
@@ -83,37 +74,28 @@ in
         ) hcvStorageControlPlanes;
 
         # Group policies
-        groupPolicies =
-          mapAttrs'
-            (
-              name: group:
-              lib.nameValuePair "${group.groupName}_readonly" {
-                provider = "vault.storage";
-                rule = [
-                  {
-                    path = "${storageDefaults.hcv.group_prefix}/data/${group.regionName}/${group.groupName}/*";
-                    capabilities = [ "read" ];
-                    description = "Allow reading secret contents for group ${group.groupName}";
-                  }
-                  {
-                    path = "${storageDefaults.hcv.group_prefix}/metadata/${group.regionName}/${group.groupName}/*";
-                    capabilities = [
-                      "read"
-                      "list"
-                    ];
-                    description = "Allow listing available secrets and viewing their metadata for group ${group.groupName} in ${group.regionName}";
-                  }
-                ];
-              }
-            )
-            (
-              listToAttrs (
-                map (group: {
-                  name = group.groupName;
-                  value = group;
-                }) hcvStorageGroups
-              )
-            );
+        groupPolicies = listToAttrs (
+          map (group:
+            lib.nameValuePair "${group.groupName}_readonly" {
+              provider = "vault.storage";
+              rule = [
+                {
+                  path = "${storageDefaults.hcv.group_prefix}/data/${group.regionName}/${group.groupName}/*";
+                  capabilities = [ "read" ];
+                  description = "Allow reading secret contents for group ${group.groupName}";
+                }
+                {
+                  path = "${storageDefaults.hcv.group_prefix}/metadata/${group.regionName}/${group.groupName}/*";
+                  capabilities = [
+                    "read"
+                    "list"
+                  ];
+                  description = "Allow listing available secrets and viewing their metadata for group ${group.groupName} in ${group.regionName}";
+                }
+              ];
+            }
+          ) hcvStorageGroups
+        );
       in
       mkMerge [
         individualPolicies
@@ -143,9 +125,8 @@ in
       ) hcvStorageSysAccountControlPlanes)
 
       # Group system account tokens
-      (mapAttrs'
-        (
-          name: group:
+      (listToAttrs (
+        map (group:
           nameValuePair "${group.groupName}_group_system_token" {
             provider = "vault.storage";
             mount = storageDefaults.hcv.group_prefix;
@@ -161,16 +142,8 @@ in
               max_versions = 1;
             };
           }
-        )
-        (
-          listToAttrs (
-            map (group: {
-              name = group.groupName;
-              value = group;
-            }) hcvStorageGroups
-          )
-        )
-      )
+        ) hcvStorageGroups
+      ))
 
       # Pinned certificate cluster configurations
       (mapAttrs' (
