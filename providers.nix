@@ -74,46 +74,14 @@ let
     )
   );
 
-  # Get groups using AWS storage - use pre-computed!
-  awsGroups = filterAttrs (
-    regionName: regionGroups:
-    filterAttrs (
-      groupName: groupConfig: elem "aws" groupConfig.storage_backend && (groupConfig.aws.enable or false)
-    ) regionGroups != { }
-  ) groups;
-
   # Generate AWS provider configurations for each group using AWS storage
-  awsGroupProviders = mkIf (awsGroups != { }) (
-    flatten (
-      attrValues (
-        mapAttrs (
-          regionName: regionGroups:
-          attrValues (
-            mapAttrs (
-              groupName: groupConfig:
-              mkIf (elem "aws" groupConfig.storage_backend && (groupConfig.aws.enable or false)) (
-                let
-                  customRegion = groupConfig.aws.region or "";
-                  customProfile = groupConfig.aws.profile or "";
-                in
-                {
-                  alias = "${regionName}-group-${groupName}";
-                  profile = if customProfile != "" then customProfile else "\${var.aws_profile}";
-                  region = if customRegion != "" then customRegion else "\${var.aws_region}";
-                }
-              )
-            ) regionGroups
-          )
-        ) awsGroups
-      )
-    )
+  awsGroupProviders = mkIf (sharedContext.awsStorageGroups != []) (
+    map (group: {
+      alias = "${group.regionName}-group-${group.originalName}";
+      profile = if group.computedAwsProfile != null then group.computedAwsProfile else "\${var.aws_profile}";
+      region = if group.computedAwsRegion != null then group.computedAwsRegion else "\${var.aws_region}";
+    }) sharedContext.awsStorageGroups
   );
-
-  # Get groups using HCV storage
-  hcvGroups = filterAttrs (
-    regionName: regionGroups:
-    filterAttrs (groupName: groupConfig: elem "hcv" groupConfig.storage_backend) regionGroups != { }
-  ) groups;
 
   # Get groups using local storage
   localStorageGroups = sharedContext.localStorageGroups;
@@ -179,7 +147,7 @@ in
       }
       # Conditional providers based on storage requirements or cleanup needs
       (mkIf
-        (needsStorageResources && (awsStoragePlanes != { } || awsGroups != { } || awsProviderPlanes != { }))
+        (needsStorageResources && (awsStoragePlanes != { } || sharedContext.awsStorageGroups != [ ] || awsProviderPlanes != { }))
         {
           aws = {
             source = "hashicorp/aws";
@@ -232,7 +200,7 @@ in
         (mkIf (needsStorageResources && awsProviderPlanes != { }) {
           aws = awsProviders;
         })
-        (mkIf (needsStorageResources && awsGroups != { }) {
+        (mkIf (needsStorageResources && sharedContext.awsStorageGroups != [ ]) {
           aws = awsGroupProviders;
         })
         (mkIf (vaultProviders != [ ]) {
