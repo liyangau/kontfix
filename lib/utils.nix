@@ -647,20 +647,22 @@ rec {
       awsRegionExpr ? null,
     }:
     let
-      ind = "\n          ";
       cpPfx = "regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.${name}.config.control_plane_endpoint)[0]";
+      baseFields = [
+        "cluster_prefix = ${cpPfx}"
+        "cluster_control_plane = \"\${${cpPfx}}.${region}.cp.konghq.com:443\""
+        "cluster_server_name = \"\${${cpPfx}}.${region}.cp.konghq.com\""
+        "cluster_telemetry_endpoint = \"\${${cpPfx}}.${region}.tp.konghq.com:443\""
+        "cluster_telemetry_server_name = \"\${${cpPfx}}.${region}.tp.konghq.com\""
+      ];
+      privateFields = optionals (awsRegionExpr != null) [
+        "private_cluster_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com/cp/\${${cpPfx}}\""
+        "private_telemetry_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com:443/tp/\${${cpPfx}}\""
+        "private_cluster_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\""
+        "private_cluster_telemetry_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\""
+      ];
     in
-    "cluster_prefix = ${cpPfx}"
-    + "${ind}cluster_control_plane = \"\${${cpPfx}}.${region}.cp.konghq.com:443\""
-    + "${ind}cluster_server_name = \"\${${cpPfx}}.${region}.cp.konghq.com\""
-    + "${ind}cluster_telemetry_endpoint = \"\${${cpPfx}}.${region}.tp.konghq.com:443\""
-    + "${ind}cluster_telemetry_server_name = \"\${${cpPfx}}.${region}.tp.konghq.com\""
-    + optionalString (awsRegionExpr != null) (
-      "${ind}private_cluster_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com/cp/\${${cpPfx}}\""
-      + "${ind}private_telemetry_url = \"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com:443/tp/\${${cpPfx}}\""
-      + "${ind}private_cluster_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\""
-      + "${ind}private_cluster_telemetry_server_name=\"\${substr(${awsRegionExpr}, 0, 2)}.svc.konghq.com\""
-    );
+    concatStringsSep "\n          " (baseFields ++ privateFields);
 
   # Validation function for self-signed certificate configuration
   validateSelfSignedCertConfig =
