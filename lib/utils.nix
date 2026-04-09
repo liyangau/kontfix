@@ -118,6 +118,13 @@ rec {
       }
     ) controlPlanes;
 
+  # Maps storage backend names to their corresponding tag names
+  backendToStorageTag = {
+    aws = "usesAws";
+    hcv = "usesHcv";
+    local = "usesLocal";
+  };
+
   # Tag-based filtering functions (O(1) lookups after tagging)
   filterByTag =
     tag: taggedControlPlanes: filterAttrs (_: cp: cp.tags.${tag} or false) taggedControlPlanes;
@@ -129,16 +136,11 @@ rec {
       backend,
       requireEnabled ? false,
     }:
+    let
+      tag = backendToStorageTag.${backend} or (throw "Unsupported storage backend: ${backend}");
+    in
     filterAttrs (
-      _: cp:
-      if backend == "aws" then
-        cp.tags.usesAws && (if requireEnabled then cp.tags.awsEnabled else true)
-      else if backend == "hcv" then
-        cp.tags.usesHcv
-      else if backend == "local" then
-        cp.tags.usesLocal
-      else
-        false
+      _: cp: cp.tags.${tag} && (if requireEnabled then cp.tags.awsEnabled else true)
     ) taggedControlPlanes;
 
   # Helper function to add provisioner and default labels
@@ -584,16 +586,17 @@ rec {
 
   getStorageControlPlanesFromContext =
     { context, backend }:
+    let
+      backendToCollection = {
+        hcv = context.hcvStorageControlPlanes;
+        aws = context.awsStorageControlPlanes;
+        local = context.localStorageControlPlanes;
+      };
+    in
     if !(elem backend supportedStorageBackends) then
       throw "Invalid storage backend '${backend}'. Supported backends: ${concatStringsSep ", " supportedStorageBackends}"
-    else if backend == "hcv" then
-      context.hcvStorageControlPlanes
-    else if backend == "aws" then
-      context.awsStorageControlPlanes
-    else if backend == "local" then
-      context.localStorageControlPlanes
     else
-      throw "Unexpected error with backend: ${backend}";
+      backendToCollection.${backend};
 
   getSystemAccountControlPlanesFromContext = context: context.individualSystemAccountPlanes;
 
