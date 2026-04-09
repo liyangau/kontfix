@@ -552,7 +552,6 @@ rec {
       groupProcessed = processGroups { inherit groups; };
     in
     processed
-    // createFilteredControlPlaneCollections processed.taggedValidatedControlPlanes
     // {
       # Group-specific fields (computed only when accessed)
       storageRequiredGroups = filter (
