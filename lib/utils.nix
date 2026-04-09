@@ -556,20 +556,11 @@ rec {
   # ============================================================================
 
   processGroups =
-    {
-      groups,
-      validation ? true,
-    }:
+    { groups }:
     let
       flattenedGroups = flattenGroups groups;
-      # Filter groups with token generation enabled (regardless of backend)
+      validatedGroups = map (group: validateGroup { inherit group; }) flattenedGroups;
       storageRequiredGroups = filter (group: group.groupConfig.generate_token) flattenedGroups;
-      # Apply validation if requested
-      validatedGroups =
-        if validation then
-          map (group: validateGroup { inherit group; }) flattenedGroups
-        else
-          flattenedGroups;
     in
     {
       inherit flattenedGroups validatedGroups storageRequiredGroups;

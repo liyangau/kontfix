@@ -17,9 +17,6 @@ let
   storageRequiredGroups = sharedContext.storageRequiredGroups;
   needsStorageResources = storageRequiredControlPlanes != { } || storageRequiredGroups != [ ];
 
-  # Get control planes that need PKI certificate generation and use HCV backend
-  hcvPkiPlanes = sharedContext.hcvPkiCertControlPlanes;
-
   # PKI configuration (for certificate generation)
   pkiConfig = config.kontfix.defaults.pki;
 

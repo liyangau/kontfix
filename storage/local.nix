@@ -134,32 +134,21 @@ in
       ) localStorageSysAccountControlPlanes)
 
       # Group system account token files
-      (mapAttrs'
-        (
-          name: group:
-          nameValuePair "${group.groupName}_group_token" {
-            content = "\${jsonencode({
+      (listToAttrs (
+        map (group: nameValuePair "${group.groupName}_group_token" {
+          content = "\${jsonencode({
             token = konnect_system_account_access_token.${group.groupName}.token
             api_addr = \"https://${group.regionName}.api.konghq.com\"
             expires_at = konnect_system_account_access_token.${group.groupName}.expires_at
             created_at = konnect_system_account_access_token.${group.groupName}.created_at
             members = ${builtins.toJSON group.groupConfig.members}
           })}";
-            filename = "\${path.module}/${groupBase}tokens/${group.regionName}_group_${group.originalName}.json";
-            file_permission = "0444";
-            directory_permission = "0755";
-            depends_on = [ "null_resource.create_token_dir" ];
-          }
-        )
-        (
-          listToAttrs (
-            map (group: {
-              name = group.groupName;
-              value = group;
-            }) localStorageGroups
-          )
-        )
-      )
+          filename = "\${path.module}/${groupBase}tokens/${group.regionName}_group_${group.originalName}.json";
+          file_permission = "0444";
+          directory_permission = "0755";
+          depends_on = [ "null_resource.create_token_dir" ];
+        }) localStorageGroups
+      ))
 
       # Cluster configuration files (consolidated key-value format without certificates)
       (mapAttrs' (
