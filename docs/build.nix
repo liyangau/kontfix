@@ -63,7 +63,7 @@ in
   '';
 
   # Legacy single file for backward compatibility
-  docs-md = pkgs.runCommand "my-module-options.md" { } ''
+  docs-md = pkgs.runCommand "kontfix-options.md" { } ''
     cat ${defaultsDoc.optionsCommonMark} > $out
     echo "" >> $out
     cat ${controlPlanesDoc.optionsCommonMark} >> $out
@@ -84,7 +84,7 @@ in
       '';
     in
     pkgs.stdenv.mkDerivation {
-      name = "my-module-doc-html";
+      name = "kontfix-docs";
 
       src = self;
 
@@ -102,7 +102,7 @@ in
       patchPhase = ''
         mkdir -p docs
 
-        # Helper function to process markdown files
+        # Helper function to process auto-generated option markdown files
         process_markdown() {
           local input=$1
           local output=$2
@@ -130,71 +130,228 @@ in
         cp ${self}/assets/kontfix.png docs/kontfix.png
 
         # Create index page
-        cat <<EOF > docs/index.md
+        cat <<'EOF' > docs/index.md
         # Kontfix Documentation
 
-
-        Welcome to the Kontfix documentation. Kontfix is an opinionated Nix-based framework for managing Kong Konnect control planes and related resources include system accounts, client certificates via Terraform. 
+        Kontfix is a Nix-based framework for managing Kong Konnect control planes and related resources—system accounts and client certificates—via Terraform. Users declare their infrastructure in Nix modules; Kontfix converts them to `config.tf.json` consumed by Terraform.
 
         ![Kontfix](kontfix.png)
+
+        ## How It Works
+
+        1. Declare control planes, storage backends, and certificates in Nix modules
+        2. Run `nix run .#build` to generate `config.tf.json`
+        3. Run `nix run .#apply` to provision resources in Kong Konnect
+
         ## Sections
 
-        - **[Defaults](defaults-options.md)** - Default configuration options for all resources
-        - **[Control Planes](controlplanes-options.md)** - Individual control plane configuration options
-        - **[Groups](groups-options.md)** - Logical groups (System accounts) configuration options
-
+        - **[Defaults](defaults.md)** — Global defaults applied to all control planes and resources
+        - **[Control Planes](controlplanes.md)** — Per-control-plane configuration: auth type, certificates, system accounts, storage backends
+        - **[Groups](groups.md)** — System account groups that span multiple control planes
         EOF
 
         # Create section introduction pages
-        cat <<EOF > docs/defaults.md
+        cat <<'EOF' > docs/defaults.md
         # Defaults Configuration
 
-        This section contains all the default configuration options that apply globally to your Kontfix setup.
+        Global settings applied across all control planes. Per-control-plane values override these defaults where applicable.
 
-        [📖 View all defaults options](defaults-options.md)
+        [View all defaults options](defaults-options.md)
+
+        ## When to Configure Each Section
+
+        Most options have sensible defaults. You only need to configure a section when you use the corresponding feature:
+
+        | Section | Configure when |
+        |---|---|
+        | `defaults.storage.hcv` | Any control plane uses the HCV storage backend |
+        | `defaults.storage.aws` | Any control plane uses the AWS storage backend |
+        | `defaults.pki.hcv` | Any control plane uses `auth_type = "pki_client_certs"` with `create_certificate = true` |
+        | `defaults.controlPlanes` | You want to change the default `auth_type` or `storage_backend` for all control planes |
+
+        ## Example
+
+        A setup using HashiCorp Vault for both storage and PKI:
+
+        ```nix
+        kontfix.defaults = {
+          storage.hcv = {
+            address = "https://vault.example.com";
+            auth_method = "approle"; # uses vault_role_id / vault_secret_id Terraform variables
+          };
+
+          pki.hcv.address = "https://vault.example.com";
+
+          controlPlanes = {
+            auth_type = "pki_client_certs";
+            storage_backend = [ "hcv" ];
+            labels = {
+              managed-by = "kontfix";
+            };
+          };
+
+          system_account_tokens = {
+            validity_period = 30;      # days
+            renewal_before_expiry = 7; # days
+          };
+        };
+        ```
 
         ## Configuration Areas
 
-        - **Storage** - AWS and HashiCorp Vault storage configurations
-        - **PKI** - PKI backend for generating client certificates for CP-DP communications. Currently HashiCorp Vault is the only supported backend.
-        - **Control Planes** - Default settings for all control plane.
-        - **Certificates** - Certificates validity and renewal settings
-        - **System Account Tokens** - System account access tokens validity and renewal settings
-
+        - **Storage** — Connection details and path prefixes for each backend (AWS Secrets Manager, HashiCorp Vault, local filesystem)
+        - **PKI** — Vault connection used to issue client certificates; required when `create_certificate = true`
+        - **Control Planes** — Default `auth_type`, `storage_backend`, and `labels` applied to every control plane unless overridden
+        - **Self-Signed Certificates** — Validity period and auto-renewal window for self-signed certificates
+        - **System Account Tokens** — Token validity period and auto-renewal window
+        - **Provider Versions** — Override pinned Terraform provider versions
         EOF
 
-        cat <<EOF > docs/controlplanes.md
+        cat <<'EOF' > docs/controlplanes.md
         # Control Planes Configuration
 
-        This section contains configuration options for individual Kong Konnect control plane.
+        Configuration for individual Kong Konnect control planes, declared under `kontfix.controlPlanes.<region>.<name>`.
 
-        [📖 View all control planes options](controlplanes-options.md)
+        Supported regions: `us`, `eu`, `au`, `sg`, `in`, `me`
 
-        ## Key Features
+        [View all control plane options](controlplanes-options.md)
 
-        - Authentication type configuration
-        - Certificate management
-        - System account creation
-        - Storage backend selection
-        - AWS configuration for storage
-        - Custom plugins support
+        ## Choosing an Auth Type
 
+        Each control plane uses one of two authentication types for data plane connectivity:
+
+        | Auth type | Use when |
+        |---|---|
+        | `pinned_client_certs` (default) | You manage certificates yourself, or use self-signed certificates generated by Kontfix |
+        | `pki_client_certs` | You want Kontfix to issue certificates from a HashiCorp Vault PKI backend |
+
+        !!! note
+            `CLUSTER_TYPE_K8S_INGRESS_CONTROLLER` control planes must use `pinned_client_certs`.
+
+        ## Examples
+
+        ### Minimal control plane
+
+        A basic control plane in the `au` region with all defaults:
+
+        ```nix
+        kontfix.controlPlanes.au.my-cp = { };
+        ```
+
+        ### Control plane with PKI certificates stored in Vault
+
+        ```nix
+        kontfix = {
+          defaults = {
+            pki.hcv.address = "https://vault.example.com";
+            storage.hcv.address = "https://vault.example.com";
+          };
+
+          controlPlanes.au.my-cp = {
+            auth_type = "pki_client_certs";
+            create_certificate = true;
+            store_cluster_config = true;
+            storage_backend = [ "hcv" ];
+          };
+        };
+        ```
+
+        ### Control plane with a system account and AWS secret storage
+
+        ```nix
+        kontfix.controlPlanes.us.my-cp = {
+          create_certificate = true;
+          system_account = {
+            enable = true;
+            generate_token = true;
+          };
+          storage_backend = [ "aws" ];
+          aws = {
+            enable = true;
+            region = "us-east-1";
+            tags = {
+              Environment = "production";
+              ManagedBy = "kontfix";
+            };
+          };
+        };
+        ```
+
+        ### Control plane group
+
+        A control plane group allows multiple data planes to connect through a single group endpoint:
+
+        ```nix
+        kontfix.controlPlanes.au = {
+          cp-a = { };
+          cp-b = { };
+
+          my-group = {
+            cluster_type = "CLUSTER_TYPE_CONTROL_PLANE_GROUP";
+            members = [ "cp-a" "cp-b" ];
+          };
+        };
+        ```
+
+        ## Key Constraints
+
+        - Group members cannot have `create_certificate = true` or `store_cluster_config = true`
+        - Control plane groups cannot have `system_account.enable = true`
+        - `CLUSTER_TYPE_K8S_INGRESS_CONTROLLER` requires `auth_type = "pinned_client_certs"`
+        - AWS storage requires `aws.enable = true` and non-empty `aws.tags`
+        - HCV storage requires `defaults.storage.hcv.address` to be set
+        - PKI certificate generation (`create_certificate = true`) only supports `pki_backend = "hcv"`
         EOF
 
-        cat <<EOF > docs/groups.md
+        cat <<'EOF' > docs/groups.md
         # Groups Configuration
 
-        This section contains configuration options for logical groups which are system accounts. It allows you to group multiple control planes and manage their configurations using the group system account access token.
+        Groups create a single system account whose access token grants access across multiple control planes. They are declared under `kontfix.groups.<region>.<name>`.
 
-        [📖 View all groups options](groups-options.md)
+        !!! note
+            A Kontfix group is not the same as `CLUSTER_TYPE_CONTROL_PLANE_GROUP`. A CP group is a Kong gateway-level construct for routing data planes. A Kontfix group is for system account management: one token, multiple control planes.
 
-        ## Key Features
+        [View all groups options](groups-options.md)
 
-        - Group member management
-        - Token generation and storage
-        - Multi-region support
-        - AWS configuration for storage
+        ## Example
 
+        A platform team group that manages two control planes and stores its token in AWS Secrets Manager:
+
+        ```nix
+        kontfix = {
+          controlPlanes.au = {
+            service-a = { };
+            service-b = { };
+          };
+
+          groups.au.platform-team = {
+            members = [ "service-a" "service-b" ];
+            generate_token = true;
+            storage_backend = [ "aws" ];
+            aws = {
+              enable = true;
+              region = "ap-southeast-2";
+              tags = {
+                Team = "platform";
+                ManagedBy = "kontfix";
+              };
+            };
+          };
+        };
+        ```
+
+        This creates:
+
+        - A `konnect_system_account` for `platform-team`
+        - A `konnect_system_account_access_token` scoped to both `service-a` and `service-b`
+        - An AWS Secrets Manager secret containing the token and member metadata
+
+        ## Key Constraints
+
+        - Group members must be individual control planes — groups cannot be members of other groups
+        - Group members cannot have `create_certificate = true` or `store_cluster_config = true`
+        - Groups do not support `system_account.enable` (the group itself acts as the system account)
+        - AWS storage requires `aws.enable = true` and non-empty `aws.tags`
         EOF
 
         # Create mkdocs.yml configuration
@@ -206,8 +363,6 @@ in
 
           theme:
             name: material
-            features:
-              - search.suggest
             font:
               text: Fira Sans
               code: JetBrains Mono
@@ -226,11 +381,11 @@ in
                 toggle:
                   icon: material/brightness-4
                   name: Switch to light mode
-
             features:
-            - navigation.footer
-            - content.tabs.link
-            - navigation.sections
+              - search.suggest
+              - navigation.footer
+              - content.tabs.link
+              - navigation.sections
 
           markdown_extensions:
           - def_list
