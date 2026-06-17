@@ -153,7 +153,6 @@ rec {
   createFilteredControlPlaneCollections =
     taggedValidatedControlPlanes:
     let
-      pkiCertControlPlanes = filterByTag "pkiAndCert" taggedValidatedControlPlanes;
       pinnedCertControlPlanes = filterByTag "pinnedAndCert" taggedValidatedControlPlanes;
       individualSystemAccountPlanes = filterByTag "systemAccountEnabled" taggedValidatedControlPlanes;
       outputEnabledControlPlanes = filterAttrs (_: cp: cp.output or false) taggedValidatedControlPlanes;
@@ -161,8 +160,6 @@ rec {
       awsProviderRequiredControlPlanes = filterAttrs (
         _: cp: cp.tags.usesAws || cp.tags.awsEnabled
       ) taggedValidatedControlPlanes;
-      awsEnabledControlPlanes = filterByTag "awsEnabled" taggedValidatedControlPlanes;
-      awsEnabledWithStorage = filterByTag "awsStorageEnabled" taggedValidatedControlPlanes;
       hcvPkiCertControlPlanes = filterByTag "hcvPkiAndCert" taggedValidatedControlPlanes;
 
       # Data-driven per-backend storage collections
@@ -203,14 +200,11 @@ rec {
     in
     {
       inherit
-        pkiCertControlPlanes
         pinnedCertControlPlanes
         individualSystemAccountPlanes
         outputEnabledControlPlanes
         storageRequiredControlPlanes
         awsProviderRequiredControlPlanes
-        awsEnabledControlPlanes
-        awsEnabledWithStorage
         hcvPkiCertControlPlanes
         ;
     }
@@ -235,6 +229,16 @@ rec {
       )
     );
 
+  # Find a control plane by its originalName across a flattened attrset.
+  # Returns the matching control plane attrset, or {} if not found.
+  # Shared by validateNoGroupReferences and validateControlPlaneLocal.
+  findByOriginalName =
+    allControlPlanes: originalName:
+    let
+      matches = filterAttrs (_: cp: (cp.originalName or "") == originalName) allControlPlanes;
+    in
+    if matches == { } then { } else head (attrValues matches);
+
   # ============================================================================
   # Group Validation - Prevent groups from referencing other groups
   # ============================================================================
@@ -243,14 +247,6 @@ rec {
   validateNoGroupReferences =
     allControlPlanes:
     let
-      # Helper to find a control plane by original name
-      findByOriginalName =
-        originalName:
-        let
-          matches = filterAttrs (n: cp: (cp.originalName or "") == originalName) allControlPlanes;
-        in
-        if matches == { } then { } else head (attrValues matches);
-
       findGroupReferences = mapAttrsToList (
         name: cp:
         if cp.cluster_type == clusterTypes.controlPlaneGroup then
@@ -258,7 +254,7 @@ rec {
             invalidMembers = filter (
               member:
               let
-                memberCP = findByOriginalName member;
+                memberCP = findByOriginalName allControlPlanes member;
               in
               hasAttr "cluster_type" memberCP && memberCP.cluster_type == clusterTypes.controlPlaneGroup
             ) (cp.members or [ ]);
@@ -305,21 +301,13 @@ rec {
       membersDefined = undefinedMembers == [ ];
 
       # Validation 3: Members of control plane groups must not have create_certificates = true or store_cluster_config = true
-      # Helper to find a control plane by original name
-      findByOriginalName =
-        originalName:
-        let
-          matches = filterAttrs (n: cp: (cp.originalName or "") == originalName) allControlPlanes;
-        in
-        if matches == { } then { } else head (attrValues matches);
-
       invalidCertMembers = filter (
-        member: (findByOriginalName member).create_certificate or false
+        member: (findByOriginalName allControlPlanes member).create_certificate or false
       ) cp.members;
       membersCertValid = invalidCertMembers == [ ];
 
       invalidStoreConfigMembers = filter (
-        member: (findByOriginalName member).store_cluster_config or false
+        member: (findByOriginalName allControlPlanes member).store_cluster_config or false
       ) cp.members;
       membersStoreConfigValid = invalidStoreConfigMembers == [ ];
 
@@ -544,10 +532,9 @@ rec {
     let
       flattenedGroups = flattenGroups groups;
       validatedGroups = map (group: validateGroup { inherit group; }) flattenedGroups;
-      storageRequiredGroups = filter (group: group.groupConfig.generate_token) flattenedGroups;
     in
     {
-      inherit flattenedGroups validatedGroups storageRequiredGroups;
+      inherit flattenedGroups validatedGroups;
     };
 
   flattenGroups =
