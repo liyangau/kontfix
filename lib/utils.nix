@@ -311,6 +311,16 @@ rec {
       ) cp.members;
       membersStoreConfigValid = invalidStoreConfigMembers == [ ];
 
+      # Validation: Group members must be in the same region as the group.
+      # defaults/config.nix builds membership references as ${cp.region}-${member},
+      # so a cross-region member would silently produce a broken reference.
+      crossRegionMembers = filter (
+        member:
+        let memberCP = findByOriginalName allControlPlanes member;
+        in memberCP != { } && memberCP.region != cp.region
+      ) cp.members;
+      membersRegionValid = crossRegionMembers == [ ];
+
       # Validation 4: CLUSTER_TYPE_CONTROL_PLANE_GROUP must have system_account.enable = false
       groupSystemAccountValid = !isGroup || !(cp.system_account.enable or false);
 
@@ -345,6 +355,8 @@ rec {
       throw "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidCertMembers} has create_certificate = true"
     else if !membersStoreConfigValid then
       throw "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidStoreConfigMembers} has store_cluster_config = true"
+    else if !membersRegionValid then
+      throw "Control plane group '${cp.region}/${cp.originalName}' references members in a different region: ${toString crossRegionMembers}. Group members must reside in the same region as the group."
     else if !groupSystemAccountValid then
       throw "Control plane group '${cp.region}/${cp.originalName}' cannot have system_account.enable = true"
     else if !groupPluginsValid then
