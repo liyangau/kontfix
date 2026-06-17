@@ -474,6 +474,77 @@ def validate_generic_resources(expected_resources: List[Dict],
     )
 
 
+def validate_required_providers(expected_providers: List[Dict],
+                                actual_config: Dict) -> SectionValidation:
+    """Validate terraform.required_providers section (provider source + version pins).
+
+    Only runs when the expected-results JSON contains a 'required_providers' key,
+    so existing tests without it are unaffected. Catches missing provider
+    declarations (e.g. tls/time provider omitted from required_providers) that
+    terraform validate only warns about.
+    """
+    actual_providers = actual_config.get("terraform", {}).get(
+        "required_providers", {}
+    )
+    results = []
+
+    for expected in expected_providers:
+        if "name" not in expected:
+            results.append(ValidationResult(
+                found=False,
+                message=("❌ Invalid test configuration: "
+                         "missing 'name' in required_providers"),
+                detail=(f"Expected provider config: "
+                        f"{format_json_compact(expected)}")
+            ))
+            continue
+
+        provider_name = expected["name"]
+        actual_provider = actual_providers.get(provider_name)
+
+        if actual_provider is None:
+            results.append(ValidationResult(
+                found=False,
+                message=(f"❌ Required provider '{provider_name}' not "
+                         "declared in required_providers"),
+                detail=(f"Provider '{provider_name}' not found in "
+                        "terraform.required_providers")
+            ))
+            continue
+
+        expected_props = {
+            k: v for k, v in expected.items() if k != "name"
+        }
+        found = is_subset(expected_props, actual_provider)
+
+        if found:
+            results.append(ValidationResult(
+                found=True,
+                message=(f"✅ Required provider '{provider_name}' declared "
+                         "with matching properties"),
+                detail=None
+            ))
+        else:
+            reason = get_mismatch_reason(expected_props, actual_provider)
+            results.append(ValidationResult(
+                found=False,
+                message=(f"❌ Required provider '{provider_name}' "
+                         "properties don't match"),
+                detail=(
+                    f"Expected:\n{format_json_compact(expected_props)}\n"
+                    f"Actual:\n{format_json_compact(actual_provider)}\n"
+                    f"Reason: {reason}"
+                )
+            ))
+
+    found_count = sum(1 for r in results if r.found)
+    return SectionValidation(
+        all_found=all(r.found for r in results),
+        results=results,
+        summary=f"{found_count}/{len(results)} required providers found"
+    )
+
+
 def validate_config(config_name: str, test_dir: Path) -> Tuple[bool, str]:
     """Main validation function"""
     actual_file = test_dir / f"{config_name}.tf.json"
@@ -517,11 +588,17 @@ def validate_config(config_name: str, test_dir: Path) -> Tuple[bool, str]:
         actual_config
     )
     
+    required_provider_validation = validate_required_providers(
+        expected_config.get("required_providers", []),
+        actual_config
+    )
+    
     all_passed = (
         provider_validation.all_found
         and control_plane_validation.all_found
         and resource_validation.all_found
         and variable_validation.all_found
+        and required_provider_validation.all_found
     )
     
     # Format output
@@ -540,12 +617,14 @@ def validate_config(config_name: str, test_dir: Path) -> Tuple[bool, str]:
         colorize(control_plane_validation.summary, 'blue'),
         colorize(resource_validation.summary, 'blue'),
         colorize(variable_validation.summary, 'blue'),
+        colorize(required_provider_validation.summary, 'blue'),
         ""
     ])
     
     # Detailed results
     for validation in [provider_validation, control_plane_validation,
-                       resource_validation, variable_validation]:
+                       resource_validation, variable_validation,
+                       required_provider_validation]:
         for result in validation.results:
             # Colorize messages
             if result.found:
