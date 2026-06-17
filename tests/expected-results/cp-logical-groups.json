@@ -32,6 +32,7 @@
       "resource_type": "konnect_system_account",
       "resource_name": "au-dev_team",
       "name": "au-dev_team",
+      "konnect_managed": false,
       "provider": "konnect.id_admin"
     },
     {
