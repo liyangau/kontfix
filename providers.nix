@@ -46,16 +46,15 @@ let
   hcvStoragePlanes = sharedContext.hcvStorageControlPlanes;
   localStoragePlanes = sharedContext.localStorageControlPlanes;
 
-  # Get control planes that use local storage AND need certificate generation
-  localStorageCertPlanes = filterAttrs (name: cp: cp.create_certificate or false) localStoragePlanes;
-
   # Check if local storage backend is used by any storage-requiring control planes or groups
   usesLocalStorageBackend =
     (any (cp: elem "local" cp.storage_backend) (attrValues storageRequiredControlPlanes))
     || (any (group: elem "local" group.groupConfig.storage_backend) storageRequiredGroups);
 
-  # TLS provider needed for certificate generation with local storage
-  needsTlsProvider = localStorageCertPlanes != { };
+  # TLS provider is needed for any pinned-cert control plane that creates a self-signed
+  # certificate, regardless of storage backend (certificates/pinned.nix emits tls_private_key
+  # and tls_self_signed_cert for every such control plane).
+  needsTlsProvider = sharedContext.pinnedCertControlPlanes != { };
 
   # null and time providers needed for any local storage usage (certificates or tokens)
   needsNullAndTimeProviders = usesLocalStorageBackend;
