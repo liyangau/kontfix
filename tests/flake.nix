@@ -501,6 +501,79 @@
           );
         };
 
+      # Create a terraform validate app for a specific configuration.
+      # Runs `terraform init -backend=false && terraform validate` in an isolated
+      # temp directory so multiple .tf.json files don't conflict. Catches hard
+      # Terraform errors (undeclared variables, broken references) that the JSON
+      # subset validator cannot detect. Requires network for provider download.
+      createValidateApp =
+        {
+          pkgs,
+          system,
+          configName,
+        }:
+        let
+          config = createTestConfiguration { inherit system configName; };
+          terraform = nixpkgs-terraform.packages.${system}.${tf_version};
+        in
+        {
+          type = "app";
+          program = toString (
+            pkgs.writers.writeBash "validate-${configName}" ''
+              echo "🔍 Validating ${configName} with terraform validate..."
+              WORKDIR=$(mktemp -d)
+              trap 'rm -rf "$WORKDIR"' EXIT
+              cp ${config} "$WORKDIR/${configName}.tf.json"
+              (
+                cd "$WORKDIR"
+                if ! ${terraform}/bin/terraform init -backend=false -input=false -no-color 2>&1; then
+                  echo "❌ terraform init failed for ${configName}"
+                  exit 1
+                fi
+                if ! ${terraform}/bin/terraform validate -no-color; then
+                  echo "❌ terraform validate failed for ${configName}"
+                  exit 1
+                fi
+              )
+              RESULT=$?
+              if [[ $RESULT -eq 0 ]]; then
+                echo "✅ ${configName} is valid"
+              fi
+              exit $RESULT
+            ''
+          );
+        };
+
+      # Create a test-all-validate app that runs terraform validate on all configurations
+      createTestAllValidateApp =
+        { pkgs, system }:
+        {
+          type = "app";
+          program = toString (
+            pkgs.writers.writeBash "test-all-validate" ''
+              echo "🚀 Running terraform validate on all test configurations..."
+              VALIDATE_FAILED=0
+              for config in ${nixpkgs.lib.concatStringsSep " " testConfigurations}; do
+                echo ""
+                if nix run .#validate-$config; then
+                  :
+                else
+                  echo "❌ $config validation failed"
+                  VALIDATE_FAILED=1
+                fi
+              done
+              echo ""
+              if [[ $VALIDATE_FAILED -eq 0 ]]; then
+                echo "🎉 All configurations passed terraform validate!"
+                exit 0
+              else
+                echo "💥 Some configurations failed validation!"
+                exit 1
+              fi
+            ''
+          );
+        };
+
       # Generate all build apps from the test configurations list
       generateBuildApps =
         { pkgs, system }:
@@ -520,11 +593,20 @@
               value = createTestApp { inherit pkgs system configName; };
             }) testConfigurations
           );
+          validateApps = nixpkgs.lib.listToAttrs (
+            map (configName: {
+              name = "validate-${configName}";
+              value = createValidateApp { inherit pkgs system configName; };
+            }) testConfigurations
+          );
           testAllBuildsApp = {
             test-all-builds = createTestAllBuildsApp { inherit pkgs system; };
           };
           testAllApp = {
             test-all = createTestAllApp { inherit pkgs system; };
+          };
+          testAllValidateApp = {
+            test-all-validate = createTestAllValidateApp { inherit pkgs system; };
           };
 
           # Error test apps
@@ -570,7 +652,7 @@
             }) testConfigurations
           );
         in
-        individualApps // buildAllApp // testApps // testAllBuildsApp // testAllApp // errorBuildApps // errorTestApps // testAllErrorsApp // snapshotApps;
+        individualApps // buildAllApp // testApps // validateApps // testAllBuildsApp // testAllApp // testAllValidateApp // errorBuildApps // errorTestApps // testAllErrorsApp // snapshotApps;
     in
     {
       apps = forEachSystem ({ system, pkgs }: generateBuildApps { inherit pkgs system; });
