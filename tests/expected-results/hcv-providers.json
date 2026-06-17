@@ -1,6 +1,18 @@
 {
   "providers": [
     {
+      "provider": "konnect",
+      "alias": "au",
+      "personal_access_token": "${var.cp_admin_token}",
+      "server_url": "https://au.api.konghq.com"
+    },
+    {
+      "provider": "vault",
+      "address": "https://vault.example.com",
+      "alias": "storage",
+      "token": "${var.vault_token}"
+    },
+    {
       "provider": "vault",
       "address": "https://vault.example.com",
       "alias": "pki",
@@ -11,12 +23,20 @@
         },
         "path": "auth/pki/login"
       }
+    }
+  ],
+  "variables": [
+    {
+      "variable_name": "cp_admin_token"
     },
     {
-      "provider": "vault",
-      "address": "https://vault.example.com",
-      "alias": "storage",
-      "token": "${var.vault_token}"
+      "variable_name": "vault_token"
+    },
+    {
+      "variable_name": "vault_pki_role_id"
+    },
+    {
+      "variable_name": "vault_pki_secret_id"
     }
   ]
 }

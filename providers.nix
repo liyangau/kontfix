@@ -89,8 +89,10 @@ let
   # Get groups using local storage
   localStorageGroups = sharedContext.localStorageGroups;
 
-  # Generate Vault PKI provider if session is configured in defaults.pki.hcv
-  vaultPkiProvider = mkIf (pkiConfig.hcv.address != "") (
+  # Generate Vault PKI provider only when a control plane actually uses HCV PKI
+  # (pki auth + create_certificate). Gating on address alone emits a provider that
+  # references vault_pki_* variables which are only declared for hcvPkiCertControlPlanes.
+  vaultPkiProvider = mkIf (sharedContext.hcvPkiCertControlPlanes != { } && pkiConfig.hcv.address != "") (
     if pkiConfig.hcv.auth_method == "token" then
       {
         alias = "pki";
@@ -113,8 +115,10 @@ let
       { }
   );
 
-  # Generate Vault storage provider if session is configured in defaults.storage.hcv
-  vaultStorageProvider = mkIf (storageConfig.hcv.address != "") (
+  # Generate Vault storage provider when a control plane actually uses HCV storage.
+  # Gating on address alone emits a provider referencing vault_token / vault_role_id
+  # which are only declared for hcvStorageControlPlanes (see defaults/config.nix).
+  vaultStorageProvider = mkIf (sharedContext.hcvStorageControlPlanes != { } && storageConfig.hcv.address != "") (
     if storageConfig.hcv.auth_method == "token" then
       {
         alias = "storage";
@@ -158,8 +162,9 @@ in
           };
         }
       )
-      # Vault providers are now based on defaults configuration, not usage
-      (mkIf (storageConfig.hcv.address != "" || pkiConfig.hcv.address != "") {
+      # Vault providers are gated on actual usage so they never reference
+      # undeclared variables (vault_token / vault_pki_token).
+      (mkIf (sharedContext.hcvStorageControlPlanes != { } || sharedContext.hcvPkiCertControlPlanes != { }) {
         vault = {
           source = "hashicorp/vault";
           version = providerVersions.vault;
@@ -196,10 +201,11 @@ in
     # Control plane-specific providers
     provider =
       let
-        # Collect all Vault providers that need to be configured based on defaults configuration
+        # Collect Vault providers that have actual consumers (matches the
+        # required_providers gate and the variable declarations in defaults/config.nix).
         vaultProviders =
-          (if (storageConfig.hcv.address != "") then [ vaultStorageProvider ] else [ ])
-          ++ (if (pkiConfig.hcv.address != "") then [ vaultPkiProvider ] else [ ]);
+          (if (sharedContext.hcvStorageControlPlanes != { } && storageConfig.hcv.address != "") then [ vaultStorageProvider ] else [ ])
+          ++ (if (sharedContext.hcvPkiCertControlPlanes != { } && pkiConfig.hcv.address != "") then [ vaultPkiProvider ] else [ ]);
       in
       mkMerge [
         { konnect = konnectProviders; }
