@@ -56,8 +56,15 @@ let
   # and tls_self_signed_cert for every such control plane).
   needsTlsProvider = sharedContext.pinnedCertControlPlanes != { };
 
-  # null and time providers needed for any local storage usage (certificates or tokens)
-  needsNullAndTimeProviders = usesLocalStorageBackend;
+  # null provider is only needed for the null_resource directory creation in
+  # storage/local.nix, so it stays gated on local storage usage.
+  needsNullProvider = usesLocalStorageBackend;
+
+  # time provider is needed for time_rotating resources, which are created for
+  # certificate lifecycle (certificates/pinned.nix), individual system account
+  # tokens (defaults/config.nix), and group tokens (groups/config.nix) — all of
+  # which are subsets of needsStorageResources, regardless of storage backend.
+  needsTimeProvider = needsStorageResources;
 
   # Generate AWS provider configurations for each control plane that needs AWS providers
   awsProviders = mkIf (awsProviderPlanes != { }) (
@@ -164,12 +171,15 @@ in
           version = providerVersions.local;
         };
       })
-      # null and time providers needed for any local storage usage
-      (mkIf needsNullAndTimeProviders {
+      # null provider only needed for local storage directory creation
+      (mkIf needsNullProvider {
         null = {
           source = "hashicorp/null";
           version = providerVersions.null;
         };
+      })
+      # time provider needed for time_rotating (cert/token rotation, any backend)
+      (mkIf needsTimeProvider {
         time = {
           source = "hashicorp/time";
           version = providerVersions.time;
