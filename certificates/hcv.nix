@@ -15,7 +15,7 @@ let
   hcvPkiPlanes = sharedContext.hcvPkiCertControlPlanes;
   # hcvPkiPlanes already has create_certificate = true, so pkiCreateCertControlPlanes is just hcvPkiPlanes
   pkiCreateCertControlPlanes = hcvPkiPlanes;
-  pkiUploadCertControlPlanes = filterAttrs (name: cp: cp.upload_ca_certificate or true) hcvPkiPlanes;
+  pkiUploadCertControlPlanes = filterAttrs (name: cp: cp.upload_ca_certificate or false) hcvPkiPlanes;
   getEffectiveCaCertificate =
     cp:
     if cp.ca_certificate != null then
