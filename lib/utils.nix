@@ -229,13 +229,14 @@ rec {
       )
     );
 
-  # Find a control plane by its originalName across a flattened attrset.
+  # Find a control plane by its originalName within a specific region.
   # Returns the matching control plane attrset, or {} if not found.
+  # Region-scoped to avoid ambiguity when the same name exists in multiple regions.
   # Shared by validateNoGroupReferences and validateControlPlaneLocal.
   findByOriginalName =
-    allControlPlanes: originalName:
+    allControlPlanes: region: originalName:
     let
-      matches = filterAttrs (_: cp: (cp.originalName or "") == originalName) allControlPlanes;
+      matches = filterAttrs (_: cp: (cp.originalName or "") == originalName && cp.region == region) allControlPlanes;
     in
     if matches == { } then { } else head (attrValues matches);
 
@@ -254,7 +255,7 @@ rec {
             invalidMembers = filter (
               member:
               let
-                memberCP = findByOriginalName allControlPlanes member;
+                memberCP = findByOriginalName allControlPlanes cp.region member;
               in
               hasAttr "cluster_type" memberCP && memberCP.cluster_type == clusterTypes.controlPlaneGroup
             ) (cp.members or [ ]);
@@ -300,26 +301,27 @@ rec {
       undefinedMembers = filter (member: !(elem member allControlPlaneNames)) cp.members;
       membersDefined = undefinedMembers == [ ];
 
-      # Validation 3: Members of control plane groups must not have create_certificates = true or store_cluster_config = true
+      # Validation 3: Group members must be in the same region as the group.
+      # defaults/config.nix builds membership references as ${cp.region}-${member},
+      # so a cross-region member would silently produce a broken reference.
+      # Checked before cert/store-config checks so those can safely use the
+      # region-aware findByOriginalName.
+      crossRegionMembers = filter (
+        member: findByOriginalName allControlPlanes cp.region member == { }
+      ) cp.members;
+      membersRegionValid = crossRegionMembers == [ ];
+
+      # Validation 4: Members of control plane groups must not have create_certificate = true
       invalidCertMembers = filter (
-        member: (findByOriginalName allControlPlanes member).create_certificate or false
+        member: (findByOriginalName allControlPlanes cp.region member).create_certificate or false
       ) cp.members;
       membersCertValid = invalidCertMembers == [ ];
 
+      # Validation 5: Members must not have store_cluster_config = true
       invalidStoreConfigMembers = filter (
-        member: (findByOriginalName allControlPlanes member).store_cluster_config or false
+        member: (findByOriginalName allControlPlanes cp.region member).store_cluster_config or false
       ) cp.members;
       membersStoreConfigValid = invalidStoreConfigMembers == [ ];
-
-      # Validation: Group members must be in the same region as the group.
-      # defaults/config.nix builds membership references as ${cp.region}-${member},
-      # so a cross-region member would silently produce a broken reference.
-      crossRegionMembers = filter (
-        member:
-        let memberCP = findByOriginalName allControlPlanes member;
-        in memberCP != { } && memberCP.region != cp.region
-      ) cp.members;
-      membersRegionValid = crossRegionMembers == [ ];
 
       # Validation 4: CLUSTER_TYPE_CONTROL_PLANE_GROUP must have system_account.enable = false
       groupSystemAccountValid = !isGroup || !(cp.system_account.enable or false);
@@ -351,12 +353,12 @@ rec {
       throw "Control plane '${cp.region}/${cp.originalName}' has members ${toString cp.members} but cluster_type is not CLUSTER_TYPE_CONTROL_PLANE_GROUP"
     else if !membersDefined then
       throw "Control plane group '${cp.region}/${cp.originalName}' references undefined members: ${toString undefinedMembers}"
+    else if !membersRegionValid then
+      throw "Control plane group '${cp.region}/${cp.originalName}' references members in a different region: ${toString crossRegionMembers}. Group members must reside in the same region as the group."
     else if !membersCertValid then
       throw "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidCertMembers} has create_certificate = true"
     else if !membersStoreConfigValid then
       throw "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidStoreConfigMembers} has store_cluster_config = true"
-    else if !membersRegionValid then
-      throw "Control plane group '${cp.region}/${cp.originalName}' references members in a different region: ${toString crossRegionMembers}. Group members must reside in the same region as the group."
     else if !groupSystemAccountValid then
       throw "Control plane group '${cp.region}/${cp.originalName}' cannot have system_account.enable = true"
     else if !groupPluginsValid then
