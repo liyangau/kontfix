@@ -100,14 +100,10 @@ rec {
             storesClusterConfig
             ;
 
-          # Combined tags for common filter patterns
-          pkiAndCert = hasPki && createsCert;
-          pinnedAndCert = hasPinned && createsCert;
-          systemAccountWithToken = systemAccountEnabled && systemAccountGenToken;
-          awsStorageEnabled = usesAws && awsEnabled;
+          # clusterConfigOnly uses a negation (!createsCert), so it stays as a
+          # derived tag. All other combined filter patterns use filterByTags
+          # with base tags directly, avoiding the need for pre-computed tags.
           clusterConfigOnly = storesClusterConfig && !createsCert;
-          # PKI control planes that create certs using HCV PKI backend
-          hcvPkiAndCert = hasPki && usesHcvPki && createsCert;
         };
       }
     ) controlPlanes;
@@ -122,6 +118,13 @@ rec {
   # Tag-based filtering functions (O(1) lookups after tagging)
   filterByTag =
     tag: taggedControlPlanes: filterAttrs (_: cp: cp.tags.${tag} or false) taggedControlPlanes;
+
+  # Multi-tag filtering: all listed tags must be true. Replaces pre-computed
+  # combined tags (pkiAndCert, pinnedAndCert, etc.) so new filter combinations
+  # don't require adding derived tags. Cost: N hash lookups (N = length tagList).
+  filterByTags =
+    tagList: taggedControlPlanes:
+    filterAttrs (_: cp: all (t: cp.tags.${t} or false) tagList) taggedControlPlanes;
 
   # Tag-based storage filtering with conditions
   filterByStorageTag =
@@ -153,14 +156,14 @@ rec {
   createFilteredControlPlaneCollections =
     taggedValidatedControlPlanes:
     let
-      pinnedCertControlPlanes = filterByTag "pinnedAndCert" taggedValidatedControlPlanes;
+      pinnedCertControlPlanes = filterByTags ["hasPinned" "createsCert"] taggedValidatedControlPlanes;
       individualSystemAccountPlanes = filterByTag "systemAccountEnabled" taggedValidatedControlPlanes;
       outputEnabledControlPlanes = filterAttrs (_: cp: cp.output or false) taggedValidatedControlPlanes;
       storageRequiredControlPlanes = filterByTag "needsStorage" taggedValidatedControlPlanes;
       awsProviderRequiredControlPlanes = filterAttrs (
         _: cp: cp.tags.usesAws || cp.tags.awsEnabled
       ) taggedValidatedControlPlanes;
-      hcvPkiCertControlPlanes = filterByTag "hcvPkiAndCert" taggedValidatedControlPlanes;
+      hcvPkiCertControlPlanes = filterByTags ["hasPki" "usesHcvPki" "createsCert"] taggedValidatedControlPlanes;
 
       # Data-driven per-backend storage collections
       storageBackendConfigs = [
@@ -169,10 +172,10 @@ rec {
         { name = "local"; requireEnabled = false; }
       ];
       storageSubTypes = [
-        { suffix = "PkiCert"; tag = "pkiAndCert"; }
-        { suffix = "PinnedCert"; tag = "pinnedAndCert"; }
-        { suffix = "SysAccount"; tag = "systemAccountWithToken"; }
-        { suffix = "ClusterConfigOnly"; tag = "clusterConfigOnly"; }
+        { suffix = "PkiCert"; tags = [ "hasPki" "createsCert" ]; }
+        { suffix = "PinnedCert"; tags = [ "hasPinned" "createsCert" ]; }
+        { suffix = "SysAccount"; tags = [ "systemAccountEnabled" "systemAccountGenToken" ]; }
+        { suffix = "ClusterConfigOnly"; tags = [ "clusterConfigOnly" ]; }
       ];
 
       # Base storage collections: hcvStorageControlPlanes, awsStorageControlPlanes, localStorageControlPlanes
@@ -193,7 +196,7 @@ rec {
           let base = baseStorageCollections."${cfg.name}StorageControlPlanes";
           in map (sub: {
             name = "${cfg.name}Storage${sub.suffix}ControlPlanes";
-            value = filterByTag sub.tag base;
+            value = filterByTags sub.tags base;
           }) storageSubTypes
         ) storageBackendConfigs
       );
