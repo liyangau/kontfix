@@ -83,7 +83,14 @@ let
         upload_ca_certificate = mkOption {
           type = types.bool;
           default = false;
-          description = "Whether to upload CA certificate to the control plane. This option is set to _true_ when `create_certificate` is _true_. If you use PKI backend, make sure either `ca_certificate` of your control plane or `kontfix.defaults.pki_ca_certificate` is used.";
+          description = ''
+            Whether to upload a CA certificate to the control plane.
+            When `create_certificate = true`, this defaults to `true` via
+            `mkDefault` — the generated self-signed cert is uploaded automatically.
+            When `create_certificate = false`, this defaults to `false`; set to
+            `true` to upload a custom CA certificate (requires `ca_certificate`
+            on the control plane or `kontfix.defaults.pki_ca_certificate`).
+          '';
         };
 
         ca_certificate = mkOption {
@@ -126,7 +133,14 @@ let
             ]
           );
           default = cfg.defaults.controlPlanes.storage_backend;
-          description = "Storage backend options";
+          description = ''
+            Storage backend(s) for this control plane. When multiple backends are
+            listed, the token, certificate, and cluster config are written to all
+            listed backends. Each backend has its own requirements:
+            `"aws"` requires `aws.enable = true`,
+            `"hcv"` requires `defaults.storage.hcv.address`,
+            `"local"` requires no external provider.
+          '';
         };
 
         aws = mkOption {
@@ -135,7 +149,16 @@ let
               enable = mkOption {
                 type = types.bool;
                 default = false;
-                description = "Whether to enable AWS provider. Enable this option to have the aws provider generated for this control plane.";
+                description = ''
+                  Whether to generate the AWS provider for this control plane.
+                  Automatically required when `storage_backend` includes `"aws"`.
+                  Can also be set to `true` independently of `storage_backend`:
+                  this generates the AWS provider without creating AWS storage
+                  resources. Useful during cleanup — removing AWS storage resources
+                  from config while keeping the provider allows `terraform destroy`
+                  to remove remote state without "provider configuration not present"
+                  errors.
+                '';
               };
               profile = mkOption {
                 type = types.str;
