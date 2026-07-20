@@ -12,5 +12,13 @@
       "personal_access_token": "${var.cp_admin_token}",
       "server_url": "https://au.api.konghq.com"
     }
+  ],
+  "required_providers": [
+    {"name": "aws", "source": "hashicorp/aws", "version": "6.17.0"},
+    {"name": "konnect", "source": "Kong/konnect", "version": "3.3.0"},
+    {"name": "local", "source": "hashicorp/local", "version": "2.5.3"},
+    {"name": "null", "source": "hashicorp/null", "version": "3.2.4"},
+    {"name": "time", "source": "hashicorp/time", "version": "0.13.1"},
+    {"name": "tls", "source": "hashicorp/tls", "version": "4.1.0"}
   ]
 }

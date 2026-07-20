@@ -10,7 +10,7 @@
       "provider": "konnect",
       "alias": "id_admin",
       "personal_access_token": "${var.id_admin_token}",
-      "server_url": "https://global.api.konghq.com"      
+      "server_url": "https://global.api.konghq.com"
     }
   ],
   "control_planes": [
@@ -40,5 +40,8 @@
     {
       "variable_name": "id_admin_token"
     }
+  ],
+  "required_providers": [
+    {"name": "konnect", "source": "Kong/konnect", "version": "3.3.0"}
   ]
 }

@@ -10,7 +10,7 @@
       "provider": "konnect",
       "alias": "id_admin",
       "personal_access_token": "${var.id_admin_token}",
-      "server_url": "https://global.api.konghq.com"      
+      "server_url": "https://global.api.konghq.com"
     },
     {
       "provider": "aws",
@@ -68,5 +68,10 @@
     {
       "variable_name": "aws_profile"
     }
+  ],
+  "required_providers": [
+    {"name": "aws", "source": "hashicorp/aws", "version": "6.17.0"},
+    {"name": "konnect", "source": "Kong/konnect", "version": "3.3.0"},
+    {"name": "time", "source": "hashicorp/time", "version": "0.13.1"}
   ]
 }
