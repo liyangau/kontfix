@@ -26,3 +26,6 @@ Thumbs.db
 .envrc
 
 *.tf.json
+CLAUDE.md
+docs/superpowers/
+.claude/
