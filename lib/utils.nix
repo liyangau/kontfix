@@ -71,7 +71,7 @@ rec {
         storesClusterConfig = cp.store_cluster_config or false;
         needsStorage =
           createsCert || storesClusterConfig || (systemAccountEnabled && systemAccountGenToken);
-        
+
         # Normalize AWS region and profile: use cp.aws values if defined, otherwise fallback to variables
         # null means use var.aws_region or var.aws_profile
         computedAwsRegion = nullIfEmpty (cp.aws.region or "");
@@ -82,7 +82,7 @@ rec {
         # Store the computed AWS region and profile for use in storage backends and variable generation
         # If null, it means we should use var.aws_region or var.aws_profile in Terraform
         inherit computedAwsRegion computedAwsProfile;
-        
+
         tags = {
           inherit
             hasPki
@@ -156,26 +156,60 @@ rec {
   createFilteredControlPlaneCollections =
     taggedValidatedControlPlanes:
     let
-      pinnedCertControlPlanes = filterByTags ["hasPinned" "createsCert"] taggedValidatedControlPlanes;
+      pinnedCertControlPlanes = filterByTags [ "hasPinned" "createsCert" ] taggedValidatedControlPlanes;
       individualSystemAccountPlanes = filterByTag "systemAccountEnabled" taggedValidatedControlPlanes;
       outputEnabledControlPlanes = filterAttrs (_: cp: cp.output or false) taggedValidatedControlPlanes;
       storageRequiredControlPlanes = filterByTag "needsStorage" taggedValidatedControlPlanes;
       awsProviderRequiredControlPlanes = filterAttrs (
         _: cp: cp.tags.usesAws || cp.tags.awsEnabled
       ) taggedValidatedControlPlanes;
-      hcvPkiCertControlPlanes = filterByTags ["hasPki" "usesHcvPki" "createsCert"] taggedValidatedControlPlanes;
+      hcvPkiCertControlPlanes = filterByTags [
+        "hasPki"
+        "usesHcvPki"
+        "createsCert"
+      ] taggedValidatedControlPlanes;
 
       # Data-driven per-backend storage collections
       storageBackendConfigs = [
-        { name = "hcv"; requireEnabled = false; }
-        { name = "aws"; requireEnabled = true; }
-        { name = "local"; requireEnabled = false; }
+        {
+          name = "hcv";
+          requireEnabled = false;
+        }
+        {
+          name = "aws";
+          requireEnabled = true;
+        }
+        {
+          name = "local";
+          requireEnabled = false;
+        }
       ];
       storageSubTypes = [
-        { suffix = "PkiCert"; tags = [ "hasPki" "createsCert" ]; }
-        { suffix = "PinnedCert"; tags = [ "hasPinned" "createsCert" ]; }
-        { suffix = "SysAccount"; tags = [ "systemAccountEnabled" "systemAccountGenToken" ]; }
-        { suffix = "ClusterConfigOnly"; tags = [ "clusterConfigOnly" ]; }
+        {
+          suffix = "PkiCert";
+          tags = [
+            "hasPki"
+            "createsCert"
+          ];
+        }
+        {
+          suffix = "PinnedCert";
+          tags = [
+            "hasPinned"
+            "createsCert"
+          ];
+        }
+        {
+          suffix = "SysAccount";
+          tags = [
+            "systemAccountEnabled"
+            "systemAccountGenToken"
+          ];
+        }
+        {
+          suffix = "ClusterConfigOnly";
+          tags = [ "clusterConfigOnly" ];
+        }
       ];
 
       # Base storage collections: hcvStorageControlPlanes, awsStorageControlPlanes, localStorageControlPlanes
@@ -192,9 +226,12 @@ rec {
 
       # Per-type collections: {backend}Storage{Type}ControlPlanes for each backend × type
       perTypeCollections = listToAttrs (
-        concatMap (cfg:
-          let base = baseStorageCollections."${cfg.name}StorageControlPlanes";
-          in map (sub: {
+        concatMap (
+          cfg:
+          let
+            base = baseStorageCollections."${cfg.name}StorageControlPlanes";
+          in
+          map (sub: {
             name = "${cfg.name}Storage${sub.suffix}ControlPlanes";
             value = filterByTags sub.tags base;
           }) storageSubTypes
@@ -239,7 +276,9 @@ rec {
   findByOriginalName =
     allControlPlanes: region: originalName:
     let
-      matches = filterAttrs (_: cp: (cp.originalName or "") == originalName && cp.region == region) allControlPlanes;
+      matches = filterAttrs (
+        _: cp: (cp.originalName or "") == originalName && cp.region == region
+      ) allControlPlanes;
     in
     if matches == { } then { } else head (attrValues matches);
 
@@ -521,20 +560,16 @@ rec {
       ) groupProcessed.validatedGroups;
       # Filter validated groups directly to preserve computed fields
       awsStorageGroups = filter (
-        group: 
-          elem "aws" group.groupConfig.storage_backend 
-          && group.groupConfig.generate_token
-          && (group.groupConfig.aws.enable or false)
+        group:
+        elem "aws" group.groupConfig.storage_backend
+        && group.groupConfig.generate_token
+        && (group.groupConfig.aws.enable or false)
       ) groupProcessed.validatedGroups;
       hcvStorageGroups = filter (
-        group: 
-          elem "hcv" group.groupConfig.storage_backend 
-          && group.groupConfig.generate_token
+        group: elem "hcv" group.groupConfig.storage_backend && group.groupConfig.generate_token
       ) groupProcessed.validatedGroups;
       localStorageGroups = filter (
-        group: 
-          elem "local" group.groupConfig.storage_backend 
-          && group.groupConfig.generate_token
+        group: elem "local" group.groupConfig.storage_backend && group.groupConfig.generate_token
       ) groupProcessed.validatedGroups;
       flattenedGroups = groupProcessed.flattenedGroups;
       validatedGroups = groupProcessed.validatedGroups;

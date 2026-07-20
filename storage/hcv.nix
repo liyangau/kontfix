@@ -37,7 +37,8 @@ in
 
           # Group policies
           (listToAttrs (
-            map (group:
+            map (
+              group:
               lib.nameValuePair "konnect_${group.groupName}_readonly" {
                 provider = "vault.storage";
                 name = "konnect_${group.groupName}_readonly";
@@ -75,7 +76,8 @@ in
 
         # Group policies
         groupPolicies = listToAttrs (
-          map (group:
+          map (
+            group:
             lib.nameValuePair "${group.groupName}_readonly" {
               provider = "vault.storage";
               rule = [
@@ -126,7 +128,8 @@ in
 
       # Group system account tokens
       (listToAttrs (
-        map (group:
+        map (
+          group:
           nameValuePair "${group.groupName}_group_system_token" {
             provider = "vault.storage";
             mount = storageDefaults.hcv.group_prefix;
@@ -159,7 +162,13 @@ in
           cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
           telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
           cp_id = konnect_gateway_control_plane.${name}.id
-          ${makeClusterConfigFields { inherit name; region = cp.region; }}
+          ${
+                      makeClusterConfigFields
+                      {
+                        inherit name;
+                        region = cp.region;
+                      }
+                    }
           })}";
           custom_metadata = {
             max_versions = 1;
@@ -188,7 +197,13 @@ in
           cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
           telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
           cp_id = konnect_gateway_control_plane.${name}.id
-          ${makeClusterConfigFields { inherit name; region = cp.region; }}
+          ${
+                      makeClusterConfigFields
+                      {
+                        inherit name;
+                        region = cp.region;
+                      }
+                    }
           })}";
           custom_metadata = {
             max_versions = 1;
@@ -207,7 +222,13 @@ in
           cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
           telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
           cp_id = konnect_gateway_control_plane.${name}.id
-          ${makeClusterConfigFields { inherit name; region = cp.region; }}
+          ${
+                      makeClusterConfigFields
+                      {
+                        inherit name;
+                        region = cp.region;
+                      }
+                    }
           })}";
           custom_metadata = {
             max_versions = 1;

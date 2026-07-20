@@ -28,10 +28,14 @@
       makeValidator =
         pkgs:
         pkgs.writeScriptBin "validator" ''
-          #!${(pkgs.python3.withPackages (ps: with ps; [
-            deepdiff
-            colorama
-          ]))}/bin/python3
+          #!${
+            (pkgs.python3.withPackages (
+              ps: with ps; [
+                deepdiff
+                colorama
+              ]
+            ))
+          }/bin/python3
           ${builtins.readFile ./validators/main.py}
         '';
 
@@ -652,7 +656,17 @@
             }) testConfigurations
           );
         in
-        individualApps // buildAllApp // testApps // validateApps // testAllBuildsApp // testAllApp // testAllValidateApp // errorBuildApps // errorTestApps // testAllErrorsApp // snapshotApps;
+        individualApps
+        // buildAllApp
+        // testApps
+        // validateApps
+        // testAllBuildsApp
+        // testAllApp
+        // testAllValidateApp
+        // errorBuildApps
+        // errorTestApps
+        // testAllErrorsApp
+        // snapshotApps;
     in
     {
       apps = forEachSystem ({ system, pkgs }: generateBuildApps { inherit pkgs system; });

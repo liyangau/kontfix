@@ -28,7 +28,13 @@ let
       server_url = "https://${region}.api.konghq.com";
     }) (attrNames cps))
     ++ (
-      if (sharedContext.individualSystemAccountPlanes != { } || groups != { } || config.kontfix.defaults.enable_id_admin) then
+      if
+        (
+          sharedContext.individualSystemAccountPlanes != { }
+          || groups != { }
+          || config.kontfix.defaults.enable_id_admin
+        )
+      then
         [
           {
             alias = "id_admin";
@@ -78,10 +84,11 @@ let
   );
 
   # Generate AWS provider configurations for each group using AWS storage
-  awsGroupProviders = mkIf (sharedContext.awsStorageGroups != []) (
+  awsGroupProviders = mkIf (sharedContext.awsStorageGroups != [ ]) (
     map (group: {
       alias = "${group.regionName}-group-${group.originalName}";
-      profile = if group.computedAwsProfile != null then group.computedAwsProfile else "\${var.aws_profile}";
+      profile =
+        if group.computedAwsProfile != null then group.computedAwsProfile else "\${var.aws_profile}";
       region = if group.computedAwsRegion != null then group.computedAwsRegion else "\${var.aws_region}";
     }) sharedContext.awsStorageGroups
   );
@@ -92,54 +99,58 @@ let
   # Generate Vault PKI provider only when a control plane actually uses HCV PKI
   # (pki auth + create_certificate). Gating on address alone emits a provider that
   # references vault_pki_* variables which are only declared for hcvPkiCertControlPlanes.
-  vaultPkiProvider = mkIf (sharedContext.hcvPkiCertControlPlanes != { } && pkiConfig.hcv.address != "") (
-    if pkiConfig.hcv.auth_method == "token" then
-      {
-        alias = "pki";
-        address = pkiConfig.hcv.address;
-        token = "\${var.vault_pki_token}";
-      }
-    else if pkiConfig.hcv.auth_method == "approle" then
-      {
-        alias = "pki";
-        address = pkiConfig.hcv.address;
-        auth_login = {
-          path = pkiConfig.hcv.auth_path;
-          parameters = {
-            role_id = "\${var.vault_pki_role_id}";
-            secret_id = "\${var.vault_pki_secret_id}";
-          };
-        };
-      }
-    else
-      { }
-  );
+  vaultPkiProvider =
+    mkIf (sharedContext.hcvPkiCertControlPlanes != { } && pkiConfig.hcv.address != "")
+      (
+        if pkiConfig.hcv.auth_method == "token" then
+          {
+            alias = "pki";
+            address = pkiConfig.hcv.address;
+            token = "\${var.vault_pki_token}";
+          }
+        else if pkiConfig.hcv.auth_method == "approle" then
+          {
+            alias = "pki";
+            address = pkiConfig.hcv.address;
+            auth_login = {
+              path = pkiConfig.hcv.auth_path;
+              parameters = {
+                role_id = "\${var.vault_pki_role_id}";
+                secret_id = "\${var.vault_pki_secret_id}";
+              };
+            };
+          }
+        else
+          { }
+      );
 
   # Generate Vault storage provider when a control plane actually uses HCV storage.
   # Gating on address alone emits a provider referencing vault_token / vault_role_id
   # which are only declared for hcvStorageControlPlanes (see defaults/config.nix).
-  vaultStorageProvider = mkIf (sharedContext.hcvStorageControlPlanes != { } && storageConfig.hcv.address != "") (
-    if storageConfig.hcv.auth_method == "token" then
-      {
-        alias = "storage";
-        address = storageConfig.hcv.address;
-        token = "\${var.vault_token}";
-      }
-    else if storageConfig.hcv.auth_method == "approle" then
-      {
-        alias = "storage";
-        address = storageConfig.hcv.address;
-        auth_login = {
-          path = storageConfig.hcv.auth_path;
-          parameters = {
-            role_id = "\${var.vault_role_id}";
-            secret_id = "\${var.vault_secret_id}";
-          };
-        };
-      }
-    else
-      { }
-  );
+  vaultStorageProvider =
+    mkIf (sharedContext.hcvStorageControlPlanes != { } && storageConfig.hcv.address != "")
+      (
+        if storageConfig.hcv.auth_method == "token" then
+          {
+            alias = "storage";
+            address = storageConfig.hcv.address;
+            token = "\${var.vault_token}";
+          }
+        else if storageConfig.hcv.auth_method == "approle" then
+          {
+            alias = "storage";
+            address = storageConfig.hcv.address;
+            auth_login = {
+              path = storageConfig.hcv.auth_path;
+              parameters = {
+                role_id = "\${var.vault_role_id}";
+                secret_id = "\${var.vault_secret_id}";
+              };
+            };
+          }
+        else
+          { }
+      );
 in
 {
   config = mkIf (cps != { }) {
@@ -154,7 +165,10 @@ in
       }
       # Conditional providers based on storage requirements or cleanup needs
       (mkIf
-        (needsStorageResources && (awsStoragePlanes != { } || sharedContext.awsStorageGroups != [ ] || awsProviderPlanes != { }))
+        (
+          needsStorageResources
+          && (awsStoragePlanes != { } || sharedContext.awsStorageGroups != [ ] || awsProviderPlanes != { })
+        )
         {
           aws = {
             source = "hashicorp/aws";
@@ -164,12 +178,14 @@ in
       )
       # Vault providers are gated on actual usage so they never reference
       # undeclared variables (vault_token / vault_pki_token).
-      (mkIf (sharedContext.hcvStorageControlPlanes != { } || sharedContext.hcvPkiCertControlPlanes != { }) {
-        vault = {
-          source = "hashicorp/vault";
-          version = providerVersions.vault;
-        };
-      })
+      (mkIf (sharedContext.hcvStorageControlPlanes != { } || sharedContext.hcvPkiCertControlPlanes != { })
+        {
+          vault = {
+            source = "hashicorp/vault";
+            version = providerVersions.vault;
+          };
+        }
+      )
       (mkIf (needsStorageResources && (localStoragePlanes != { } || localStorageGroups != [ ])) {
         local = {
           source = "hashicorp/local";
@@ -205,8 +221,18 @@ in
         # Collect Vault providers that have actual consumers (matches the
         # required_providers gate and the variable declarations in defaults/config.nix).
         vaultProviders =
-          (if (sharedContext.hcvStorageControlPlanes != { } && storageConfig.hcv.address != "") then [ vaultStorageProvider ] else [ ])
-          ++ (if (sharedContext.hcvPkiCertControlPlanes != { } && pkiConfig.hcv.address != "") then [ vaultPkiProvider ] else [ ]);
+          (
+            if (sharedContext.hcvStorageControlPlanes != { } && storageConfig.hcv.address != "") then
+              [ vaultStorageProvider ]
+            else
+              [ ]
+          )
+          ++ (
+            if (sharedContext.hcvPkiCertControlPlanes != { } && pkiConfig.hcv.address != "") then
+              [ vaultPkiProvider ]
+            else
+              [ ]
+          );
       in
       mkMerge [
         { konnect = konnectProviders; }

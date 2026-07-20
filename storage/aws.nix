@@ -84,7 +84,8 @@ in
       (mapAttrs' (
         name: cp:
         let
-          awsRegionExpr = if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region";
+          awsRegionExpr =
+            if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region";
         in
         nameValuePair "${name}_pki_cluster_version" {
           provider = "aws.${cp.region}-${cp.originalName}";
@@ -96,7 +97,14 @@ in
           issuing_ca = vault_pki_secret_backend_cert.${name}.issuing_ca
           cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
           telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
-          ${makeClusterConfigFields { inherit name; region = cp.region; awsRegionExpr = awsRegionExpr; }}
+          ${
+                      makeClusterConfigFields
+                      {
+                        inherit name;
+                        region = cp.region;
+                        awsRegionExpr = awsRegionExpr;
+                      }
+                    }
           })}";
         }
       ) awsStoragePkiCertControlPlanes)
@@ -105,7 +113,8 @@ in
       (mapAttrs' (
         name: cp:
         let
-          awsRegionExpr = if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region";
+          awsRegionExpr =
+            if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region";
         in
         nameValuePair "${name}_pinned_cluster_version" {
           provider = "aws.${cp.region}-${cp.originalName}";
@@ -117,7 +126,14 @@ in
           issuing_ca = tls_self_signed_cert.${name}.cert_pem
           cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
           telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
-          ${makeClusterConfigFields { inherit name; region = cp.region; awsRegionExpr = awsRegionExpr; }}
+          ${
+                      makeClusterConfigFields
+                      {
+                        inherit name;
+                        region = cp.region;
+                        awsRegionExpr = awsRegionExpr;
+                      }
+                    }
           })}";
           lifecycle = [
             {
@@ -133,7 +149,8 @@ in
       (mapAttrs' (
         name: cp:
         let
-          awsRegionExpr = if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region";
+          awsRegionExpr =
+            if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region";
         in
         nameValuePair "${name}_cluster_config_only_version" {
           provider = "aws.${cp.region}-${cp.originalName}";
@@ -142,7 +159,14 @@ in
           cp_id = konnect_gateway_control_plane.${name}.id
           cluster_url = konnect_gateway_control_plane.${name}.config.control_plane_endpoint
           telemetry_url = konnect_gateway_control_plane.${name}.config.telemetry_endpoint
-          ${makeClusterConfigFields { inherit name; region = cp.region; awsRegionExpr = awsRegionExpr; }}
+          ${
+                      makeClusterConfigFields
+                      {
+                        inherit name;
+                        region = cp.region;
+                        awsRegionExpr = awsRegionExpr;
+                      }
+                    }
           })}";
         }
       ) awsStorageClusterConfigOnlyControlPlanes)
@@ -151,7 +175,8 @@ in
       (mapAttrs' (
         name: cp:
         let
-          awsRegionExpr = if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region";
+          awsRegionExpr =
+            if cp.computedAwsRegion != null then "\"${cp.computedAwsRegion}\"" else "var.aws_region";
         in
         nameValuePair "${name}_system_token_version" {
           provider = "aws.${cp.region}-${cp.originalName}";
@@ -168,9 +193,11 @@ in
 
       # Group system account token versions
       (listToAttrs (
-        map (group:
+        map (
+          group:
           let
-            awsRegionExpr = if group.computedAwsRegion != null then "\"${group.computedAwsRegion}\"" else "var.aws_region";
+            awsRegionExpr =
+              if group.computedAwsRegion != null then "\"${group.computedAwsRegion}\"" else "var.aws_region";
           in
           {
             name = "${group.groupName}_group_system_token_version";
