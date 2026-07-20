@@ -76,9 +76,6 @@ with lib;
         };
       };
       # Vault PKI configuration. Intentionally separate from storage.hcv above
-      # to support least-privilege deployments where certificate generation and
-      # secret storage use different Vault instances with isolated policies.
-      # Vault PKI configuration. Intentionally separate from storage.hcv above
       # to support least-privilege deployments where cert generation (PKI) and
       # secret storage use different Vault instances with isolated policies.
       pki = {

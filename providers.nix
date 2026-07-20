@@ -190,7 +190,8 @@ in
           version = providerVersions.time;
         };
       })
-      # TLS provider needed specifically for certificate generation with local storage
+      # TLS provider needed for any pinned-cert control plane that creates a
+      # self-signed certificate (certificates/pinned.nix), regardless of backend
       (mkIf needsTlsProvider {
         tls = {
           source = "hashicorp/tls";

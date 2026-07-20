@@ -326,28 +326,28 @@ rec {
       ) cp.members;
       membersStoreConfigValid = invalidStoreConfigMembers == [ ];
 
-      # Validation 4: CLUSTER_TYPE_CONTROL_PLANE_GROUP must have system_account.enable = false
+      # Validation 6: CLUSTER_TYPE_CONTROL_PLANE_GROUP must have system_account.enable = false
       groupSystemAccountValid = !isGroup || !(cp.system_account.enable or false);
 
-      # Validation 5: CLUSTER_TYPE_CONTROL_PLANE_GROUP should not have custom_plugins
+      # Validation 7: CLUSTER_TYPE_CONTROL_PLANE_GROUP should not have custom_plugins
       groupPluginsValid = !isGroup || cp.custom_plugins == [ ];
 
-      # Validation 6: Control planes using AWS backend must have aws.tags defined
+      # Validation 8: Control planes using AWS backend must have aws.tags defined
       usesAws = elem "aws" cp.storage_backend;
       awsTagsValid = !usesAws || (cp ? aws && cp.aws ? tags && cp.aws.tags != { });
 
-      # Validation 7: K8s Ingress Controller must use pinned_client_certs
+      # Validation 9: K8s Ingress Controller must use pinned_client_certs
       k8sAuthValid = cp.cluster_type != clusterTypes.k8sIngress || cp.auth_type == authTypes.pinned;
 
-      # Validation 8: AWS storage backend requires aws.enable = true
+      # Validation 10: AWS storage backend requires aws.enable = true
       usesAwsStorage = elem "aws" cp.storage_backend;
       awsEnabled = cp.aws.enable or false;
       awsStorageValid = !usesAwsStorage || awsEnabled;
 
-      # Validation 9: Region must be in allowed list
+      # Validation 11: Region must be in allowed list
       regionValid = elem cp.region allowedRegions;
 
-      # Validation 10: PKI control planes with create_certificate = true must have a supported pki_backend
+      # Validation 12: PKI control planes with create_certificate = true must have a supported pki_backend
       usesPkiAuth = cp.auth_type == authTypes.pki;
       createsCert = cp.create_certificate or false;
       pkiBackendValid = !usesPkiAuth || !createsCert || (elem cp.pki_backend supportedPkiBackend);
@@ -387,7 +387,7 @@ rec {
       defaults, # Explicitly pass just the defaults we need
     }:
     let
-      # Validation 11: Control planes that need storage and use HCV backend must have storage.hcv.address configured
+      # Validation 13: Control planes that need storage and use HCV backend must have storage.hcv.address configured
       needsStorage =
         (cp.create_certificate or false)
         || (cp.store_cluster_config or false)
@@ -395,7 +395,7 @@ rec {
       usesHcvStorage = needsStorage && elem "hcv" cp.storage_backend;
       hcvStorageAddressValid = !usesHcvStorage || (defaults.storage.hcv.address or "") != "";
 
-      # Validation 12: PKI control planes with create_certificate = true and pki_backend = "hcv" must have pki.hcv.address configured
+      # Validation 14: PKI control planes with create_certificate = true and pki_backend = "hcv" must have pki.hcv.address configured
       usesPkiAuth = cp.auth_type == authTypes.pki;
       createsCert = cp.create_certificate or false;
       usesHcvPki = usesPkiAuth && createsCert && cp.pki_backend == "hcv";

@@ -36,15 +36,15 @@ let
         type = types.submodule {
           options = {
             enable = mkOption {
-                type = types.bool;
-                default = false;
-                description = ''
-                  Whether to generate the AWS provider for this group. Automatically
-                  required when `storage_backend` includes `"aws"`. Can also be set
-                  to `true` independently for cleanup scenarios (see
-                  `kontfix.controlPlanes` `aws.enable` for details).
-                '';
-              };
+              type = types.bool;
+              default = false;
+              description = ''
+                Whether to generate the AWS provider for this group. Automatically
+                required when `storage_backend` includes `"aws"`. Can also be set
+                to `true` independently for cleanup scenarios (see
+                `kontfix.controlPlanes` `aws.enable` for details).
+              '';
+            };
             profile = mkOption {
               type = types.str;
               default = "";
