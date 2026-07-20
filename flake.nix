@@ -5,6 +5,7 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     terranix.url = "github:terranix/terranix";
     systems.url = "github:nix-systems/default";
+    nixpkgs-terraform.url = "github:stackbuilders/nixpkgs-terraform";
   };
 
   outputs =
@@ -13,6 +14,7 @@
       nixpkgs,
       terranix,
       systems,
+      nixpkgs-terraform,
     }:
     let
       forEachSystem =
@@ -30,6 +32,19 @@
           ./docs
         ];
       };
+
+      tf_version = "terraform-1.14.0";
+
+      # Test harness (tests/default.nix) wired into this flake's apps/devShells
+      # so the suite uses the same nixpkgs pin as the library and needs no
+      # self-referential `path:../` flake input.
+      testsFor =
+        { system, pkgs }:
+        import ./tests/default.nix {
+          inherit pkgs system;
+          kontfixLib = self.lib;
+          terraform = nixpkgs-terraform.packages.${system}.${tf_version};
+        };
     in
     {
       lib = {
@@ -85,6 +100,18 @@
             controlplanes-docs-md
             groups-docs-md
             ;
+        }
+      );
+
+      apps = forEachSystem (
+        { system, pkgs }:
+        (testsFor { inherit system pkgs; }).apps
+      );
+
+      devShells = forEachSystem (
+        { system, pkgs }:
+        {
+          default = (testsFor { inherit system pkgs; }).devShell;
         }
       );
     };
