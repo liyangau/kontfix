@@ -323,6 +323,18 @@ rec {
   # Validation Functions - Split into local and cross-cutting
   # ============================================================================
 
+  # Evaluate an ordered list of `{ valid = Bool; message = String; }` checks.
+  # Throws the message of the first check whose `valid` is false; returns
+  # `result` when every check passes. Checks short-circuit in list order and a
+  # message is only built for the failing check, so this preserves the
+  # behaviour of the previous nested if/then/throw chains.
+  assertValidOrThrow =
+    checks: result:
+    let
+      failed = findFirst (check: !check.valid) null checks;
+    in
+    if failed == null then result else throw failed.message;
+
   # Local validation - only needs control plane data and peer references
   validateControlPlaneLocal =
     {
@@ -391,32 +403,56 @@ rec {
       createsCert = cp.create_certificate or false;
       pkiBackendValid = !usesPkiAuth || !createsCert || (elem cp.pki_backend supportedPkiBackend);
     in
-    if !membersTypeValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' has members ${toString cp.members} but cluster_type is not CLUSTER_TYPE_CONTROL_PLANE_GROUP"
-    else if !membersDefined then
-      throw "Control plane group '${cp.region}/${cp.originalName}' references undefined members: ${toString undefinedMembers}"
-    else if !membersRegionValid then
-      throw "Control plane group '${cp.region}/${cp.originalName}' references members in a different region: ${toString crossRegionMembers}. Group members must reside in the same region as the group."
-    else if !membersCertValid then
-      throw "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidCertMembers} has create_certificate = true"
-    else if !membersStoreConfigValid then
-      throw "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidStoreConfigMembers} has store_cluster_config = true"
-    else if !groupSystemAccountValid then
-      throw "Control plane group '${cp.region}/${cp.originalName}' cannot have system_account.enable = true"
-    else if !groupPluginsValid then
-      throw "Control plane group '${cp.region}/${cp.originalName}' cannot have custom_plugins defined."
-    else if !awsTagsValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' uses AWS backend but aws.tags is not defined or empty"
-    else if !k8sAuthValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' with cluster_type 'CLUSTER_TYPE_K8S_INGRESS_CONTROLLER' must have auth_type 'pinned_client_certs' but got '${cp.auth_type}'"
-    else if !awsStorageValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
-    else if !regionValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' has invalid region '${cp.region}'. Allowed regions are: ${concatStringsSep ", " allowedRegions}"
-    else if !pkiBackendValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' has unsupported pki_backend '${cp.pki_backend}'. Supported backends: ${concatStringsSep ", " supportedPkiBackend}"
-    else
-      cp;
+    assertValidOrThrow [
+      {
+        valid = membersTypeValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' has members ${toString cp.members} but cluster_type is not CLUSTER_TYPE_CONTROL_PLANE_GROUP";
+      }
+      {
+        valid = membersDefined;
+        message = "Control plane group '${cp.region}/${cp.originalName}' references undefined members: ${toString undefinedMembers}";
+      }
+      {
+        valid = membersRegionValid;
+        message = "Control plane group '${cp.region}/${cp.originalName}' references members in a different region: ${toString crossRegionMembers}. Group members must reside in the same region as the group.";
+      }
+      {
+        valid = membersCertValid;
+        message = "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidCertMembers} has create_certificate = true";
+      }
+      {
+        valid = membersStoreConfigValid;
+        message = "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidStoreConfigMembers} has store_cluster_config = true";
+      }
+      {
+        valid = groupSystemAccountValid;
+        message = "Control plane group '${cp.region}/${cp.originalName}' cannot have system_account.enable = true";
+      }
+      {
+        valid = groupPluginsValid;
+        message = "Control plane group '${cp.region}/${cp.originalName}' cannot have custom_plugins defined.";
+      }
+      {
+        valid = awsTagsValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' uses AWS backend but aws.tags is not defined or empty";
+      }
+      {
+        valid = k8sAuthValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' with cluster_type 'CLUSTER_TYPE_K8S_INGRESS_CONTROLLER' must have auth_type 'pinned_client_certs' but got '${cp.auth_type}'";
+      }
+      {
+        valid = awsStorageValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage.";
+      }
+      {
+        valid = regionValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' has invalid region '${cp.region}'. Allowed regions are: ${concatStringsSep ", " allowedRegions}";
+      }
+      {
+        valid = pkiBackendValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' has unsupported pki_backend '${cp.pki_backend}'. Supported backends: ${concatStringsSep ", " supportedPkiBackend}";
+      }
+    ] cp;
 
   # Cross-cutting validation - requires global defaults configuration
   validateControlPlaneWithDefaults =
@@ -440,12 +476,16 @@ rec {
       usesHcvPki = usesPkiAuth && createsCert && cp.pki_backend == "hcv";
       hcvPkiAddressValid = !usesHcvPki || (defaults.pki.hcv.address or "") != "";
     in
-    if !hcvStorageAddressValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' uses HCV storage backend but defaults.storage.hcv.address is not configured. Please set kontfix.defaults.storage.hcv.address"
-    else if !hcvPkiAddressValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' uses HCV PKI backend but defaults.pki.hcv.address is not configured. Please set kontfix.defaults.pki.hcv.address"
-    else
-      cp;
+    assertValidOrThrow [
+      {
+        valid = hcvStorageAddressValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' uses HCV storage backend but defaults.storage.hcv.address is not configured. Please set kontfix.defaults.storage.hcv.address";
+      }
+      {
+        valid = hcvPkiAddressValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' uses HCV PKI backend but defaults.pki.hcv.address is not configured. Please set kontfix.defaults.pki.hcv.address";
+      }
+    ] cp;
 
   # Combined validation function
   validateControlPlane =
@@ -487,12 +527,16 @@ rec {
       computedAwsRegion = nullIfEmpty (groupConfig.aws.region or "");
       computedAwsProfile = nullIfEmpty (groupConfig.aws.profile or "");
     in
-    if !awsTagsValid then
-      throw "Group '${group.regionName}/${group.originalName}' uses AWS backend but aws.tags is not defined or empty"
-    else if !awsStorageValid then
-      throw "Group '${group.regionName}/${group.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
-    else
-      group // { inherit computedAwsRegion computedAwsProfile; };
+    assertValidOrThrow [
+      {
+        valid = awsTagsValid;
+        message = "Group '${group.regionName}/${group.originalName}' uses AWS backend but aws.tags is not defined or empty";
+      }
+      {
+        valid = awsStorageValid;
+        message = "Group '${group.regionName}/${group.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage.";
+      }
+    ] (group // { inherit computedAwsRegion computedAwsProfile; });
 
   # ============================================================================
   # Processing Functions
