@@ -23,7 +23,13 @@ let
           ]
         );
         default = [ "local" ];
-        description = "Storage backend(s) for group system account token";
+        description = ''
+          Storage backend(s) for the group system account token. When multiple
+          backends are listed, the token is written to _all_ listed backends.
+          `"aws"` requires `aws.enable = true` on the group,
+          `"hcv"` requires `defaults.storage.hcv.address` to be set,
+          `"local"` requires no external provider.
+        '';
       };
 
       aws = mkOption {
@@ -32,7 +38,12 @@ let
             enable = mkOption {
               type = types.bool;
               default = false;
-              description = "Whether to enable AWS provider";
+              description = ''
+                Whether to generate the AWS provider for this group. Automatically
+                required when `storage_backend` includes `"aws"`. Can also be set
+                to `true` independently for cleanup scenarios (see
+                `kontfix.controlPlanes` `aws.enable` for details).
+              '';
             };
             profile = mkOption {
               type = types.str;

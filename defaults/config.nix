@@ -40,30 +40,36 @@ in
               description = "Kong control plane admin token";
               sensitive = true;
             };
-            id_admin_token = mkIf (processed.individualSystemAccountPlanes != { } || cfg.groups != { } || cfg.defaults.enable_id_admin) {
-              type = "string";
-              description = "Kong identity admin token";
-              sensitive = true;
-            };
+            id_admin_token =
+              mkIf
+                (
+                  processed.individualSystemAccountPlanes != { } || cfg.groups != { } || cfg.defaults.enable_id_admin
+                )
+                {
+                  type = "string";
+                  description = "Kong identity admin token";
+                  sensitive = true;
+                };
           };
 
           # AWS variables
           # Check if any control plane OR group needs AWS variables (doesn't define its own region or profile)
-          anyAwsProviderNeedsRegion = 
+          anyAwsProviderNeedsRegion =
             any (cp: cp.computedAwsRegion == null) (attrValues processed.awsProviderRequiredControlPlanes)
             || any (group: group.computedAwsRegion == null) processed.awsStorageGroups;
-          anyAwsProviderNeedsProfile = 
+          anyAwsProviderNeedsProfile =
             any (cp: cp.computedAwsProfile == null) (attrValues processed.awsProviderRequiredControlPlanes)
             || any (group: group.computedAwsProfile == null) processed.awsStorageGroups;
           hasAwsRegionDefault = cfg.defaults.storage.aws.region != "";
           hasAwsProfileDefault = cfg.defaults.storage.aws.profile != "";
-          
+
           awsVars = mkMerge [
             (mkIf anyAwsProviderNeedsRegion {
               aws_region = {
                 type = "string";
                 description = "AWS default region";
-              } // optionalAttrs hasAwsRegionDefault {
+              }
+              // optionalAttrs hasAwsRegionDefault {
                 default = cfg.defaults.storage.aws.region;
               };
             })
@@ -71,7 +77,8 @@ in
               aws_profile = {
                 type = "string";
                 description = "AWS default profile";
-              } // optionalAttrs hasAwsProfileDefault {
+              }
+              // optionalAttrs hasAwsProfileDefault {
                 default = cfg.defaults.storage.aws.profile;
               };
             })

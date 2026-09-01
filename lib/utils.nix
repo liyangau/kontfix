@@ -71,7 +71,7 @@ rec {
         storesClusterConfig = cp.store_cluster_config or false;
         needsStorage =
           createsCert || storesClusterConfig || (systemAccountEnabled && systemAccountGenToken);
-        
+
         # Normalize AWS region and profile: use cp.aws values if defined, otherwise fallback to variables
         # null means use var.aws_region or var.aws_profile
         computedAwsRegion = nullIfEmpty (cp.aws.region or "");
@@ -82,7 +82,7 @@ rec {
         # Store the computed AWS region and profile for use in storage backends and variable generation
         # If null, it means we should use var.aws_region or var.aws_profile in Terraform
         inherit computedAwsRegion computedAwsProfile;
-        
+
         tags = {
           inherit
             hasPki
@@ -100,14 +100,10 @@ rec {
             storesClusterConfig
             ;
 
-          # Combined tags for common filter patterns
-          pkiAndCert = hasPki && createsCert;
-          pinnedAndCert = hasPinned && createsCert;
-          systemAccountWithToken = systemAccountEnabled && systemAccountGenToken;
-          awsStorageEnabled = usesAws && awsEnabled;
+          # clusterConfigOnly uses a negation (!createsCert), so it stays as a
+          # derived tag. All other combined filter patterns use filterByTags
+          # with base tags directly, avoiding the need for pre-computed tags.
           clusterConfigOnly = storesClusterConfig && !createsCert;
-          # PKI control planes that create certs using HCV PKI backend
-          hcvPkiAndCert = hasPki && usesHcvPki && createsCert;
         };
       }
     ) controlPlanes;
@@ -122,6 +118,13 @@ rec {
   # Tag-based filtering functions (O(1) lookups after tagging)
   filterByTag =
     tag: taggedControlPlanes: filterAttrs (_: cp: cp.tags.${tag} or false) taggedControlPlanes;
+
+  # Multi-tag filtering: all listed tags must be true. Replaces pre-computed
+  # combined tags (pkiAndCert, pinnedAndCert, etc.) so new filter combinations
+  # don't require adding derived tags. Cost: N hash lookups (N = length tagList).
+  filterByTags =
+    tagList: taggedControlPlanes:
+    filterAttrs (_: cp: all (t: cp.tags.${t} or false) tagList) taggedControlPlanes;
 
   # Tag-based storage filtering with conditions
   filterByStorageTag =
@@ -153,29 +156,60 @@ rec {
   createFilteredControlPlaneCollections =
     taggedValidatedControlPlanes:
     let
-      pkiCertControlPlanes = filterByTag "pkiAndCert" taggedValidatedControlPlanes;
-      pinnedCertControlPlanes = filterByTag "pinnedAndCert" taggedValidatedControlPlanes;
+      pinnedCertControlPlanes = filterByTags [ "hasPinned" "createsCert" ] taggedValidatedControlPlanes;
       individualSystemAccountPlanes = filterByTag "systemAccountEnabled" taggedValidatedControlPlanes;
       outputEnabledControlPlanes = filterAttrs (_: cp: cp.output or false) taggedValidatedControlPlanes;
       storageRequiredControlPlanes = filterByTag "needsStorage" taggedValidatedControlPlanes;
       awsProviderRequiredControlPlanes = filterAttrs (
         _: cp: cp.tags.usesAws || cp.tags.awsEnabled
       ) taggedValidatedControlPlanes;
-      awsEnabledControlPlanes = filterByTag "awsEnabled" taggedValidatedControlPlanes;
-      awsEnabledWithStorage = filterByTag "awsStorageEnabled" taggedValidatedControlPlanes;
-      hcvPkiCertControlPlanes = filterByTag "hcvPkiAndCert" taggedValidatedControlPlanes;
+      hcvPkiCertControlPlanes = filterByTags [
+        "hasPki"
+        "usesHcvPki"
+        "createsCert"
+      ] taggedValidatedControlPlanes;
 
       # Data-driven per-backend storage collections
       storageBackendConfigs = [
-        { name = "hcv"; requireEnabled = false; }
-        { name = "aws"; requireEnabled = true; }
-        { name = "local"; requireEnabled = false; }
+        {
+          name = "hcv";
+          requireEnabled = false;
+        }
+        {
+          name = "aws";
+          requireEnabled = true;
+        }
+        {
+          name = "local";
+          requireEnabled = false;
+        }
       ];
       storageSubTypes = [
-        { suffix = "PkiCert"; tag = "pkiAndCert"; }
-        { suffix = "PinnedCert"; tag = "pinnedAndCert"; }
-        { suffix = "SysAccount"; tag = "systemAccountWithToken"; }
-        { suffix = "ClusterConfigOnly"; tag = "clusterConfigOnly"; }
+        {
+          suffix = "PkiCert";
+          tags = [
+            "hasPki"
+            "createsCert"
+          ];
+        }
+        {
+          suffix = "PinnedCert";
+          tags = [
+            "hasPinned"
+            "createsCert"
+          ];
+        }
+        {
+          suffix = "SysAccount";
+          tags = [
+            "systemAccountEnabled"
+            "systemAccountGenToken"
+          ];
+        }
+        {
+          suffix = "ClusterConfigOnly";
+          tags = [ "clusterConfigOnly" ];
+        }
       ];
 
       # Base storage collections: hcvStorageControlPlanes, awsStorageControlPlanes, localStorageControlPlanes
@@ -192,25 +226,25 @@ rec {
 
       # Per-type collections: {backend}Storage{Type}ControlPlanes for each backend × type
       perTypeCollections = listToAttrs (
-        concatMap (cfg:
-          let base = baseStorageCollections."${cfg.name}StorageControlPlanes";
-          in map (sub: {
+        concatMap (
+          cfg:
+          let
+            base = baseStorageCollections."${cfg.name}StorageControlPlanes";
+          in
+          map (sub: {
             name = "${cfg.name}Storage${sub.suffix}ControlPlanes";
-            value = filterByTag sub.tag base;
+            value = filterByTags sub.tags base;
           }) storageSubTypes
         ) storageBackendConfigs
       );
     in
     {
       inherit
-        pkiCertControlPlanes
         pinnedCertControlPlanes
         individualSystemAccountPlanes
         outputEnabledControlPlanes
         storageRequiredControlPlanes
         awsProviderRequiredControlPlanes
-        awsEnabledControlPlanes
-        awsEnabledWithStorage
         hcvPkiCertControlPlanes
         ;
     }
@@ -235,6 +269,19 @@ rec {
       )
     );
 
+  # Find a control plane by its originalName within a specific region.
+  # Returns the matching control plane attrset, or {} if not found.
+  # Region-scoped to avoid ambiguity when the same name exists in multiple regions.
+  # Shared by validateNoGroupReferences and validateControlPlaneLocal.
+  findByOriginalName =
+    allControlPlanes: region: originalName:
+    let
+      matches = filterAttrs (
+        _: cp: (cp.originalName or "") == originalName && cp.region == region
+      ) allControlPlanes;
+    in
+    if matches == { } then { } else head (attrValues matches);
+
   # ============================================================================
   # Group Validation - Prevent groups from referencing other groups
   # ============================================================================
@@ -243,14 +290,6 @@ rec {
   validateNoGroupReferences =
     allControlPlanes:
     let
-      # Helper to find a control plane by original name
-      findByOriginalName =
-        originalName:
-        let
-          matches = filterAttrs (n: cp: (cp.originalName or "") == originalName) allControlPlanes;
-        in
-        if matches == { } then { } else head (attrValues matches);
-
       findGroupReferences = mapAttrsToList (
         name: cp:
         if cp.cluster_type == clusterTypes.controlPlaneGroup then
@@ -258,7 +297,7 @@ rec {
             invalidMembers = filter (
               member:
               let
-                memberCP = findByOriginalName member;
+                memberCP = findByOriginalName allControlPlanes cp.region member;
               in
               hasAttr "cluster_type" memberCP && memberCP.cluster_type == clusterTypes.controlPlaneGroup
             ) (cp.members or [ ]);
@@ -284,6 +323,18 @@ rec {
   # Validation Functions - Split into local and cross-cutting
   # ============================================================================
 
+  # Evaluate an ordered list of `{ valid = Bool; message = String; }` checks.
+  # Throws the message of the first check whose `valid` is false; returns
+  # `result` when every check passes. Checks short-circuit in list order and a
+  # message is only built for the failing check, so this preserves the
+  # behaviour of the previous nested if/then/throw chains.
+  assertValidOrThrow =
+    checks: result:
+    let
+      failed = findFirst (check: !check.valid) null checks;
+    in
+    if failed == null then result else throw failed.message;
+
   # Local validation - only needs control plane data and peer references
   validateControlPlaneLocal =
     {
@@ -304,75 +355,104 @@ rec {
       undefinedMembers = filter (member: !(elem member allControlPlaneNames)) cp.members;
       membersDefined = undefinedMembers == [ ];
 
-      # Validation 3: Members of control plane groups must not have create_certificates = true or store_cluster_config = true
-      # Helper to find a control plane by original name
-      findByOriginalName =
-        originalName:
-        let
-          matches = filterAttrs (n: cp: (cp.originalName or "") == originalName) allControlPlanes;
-        in
-        if matches == { } then { } else head (attrValues matches);
+      # Validation 3: Group members must be in the same region as the group.
+      # defaults/config.nix builds membership references as ${cp.region}-${member},
+      # so a cross-region member would silently produce a broken reference.
+      # Checked before cert/store-config checks so those can safely use the
+      # region-aware findByOriginalName.
+      crossRegionMembers = filter (
+        member: findByOriginalName allControlPlanes cp.region member == { }
+      ) cp.members;
+      membersRegionValid = crossRegionMembers == [ ];
 
+      # Validation 4: Members of control plane groups must not have create_certificate = true
       invalidCertMembers = filter (
-        member: (findByOriginalName member).create_certificate or false
+        member: (findByOriginalName allControlPlanes cp.region member).create_certificate or false
       ) cp.members;
       membersCertValid = invalidCertMembers == [ ];
 
+      # Validation 5: Members must not have store_cluster_config = true
       invalidStoreConfigMembers = filter (
-        member: (findByOriginalName member).store_cluster_config or false
+        member: (findByOriginalName allControlPlanes cp.region member).store_cluster_config or false
       ) cp.members;
       membersStoreConfigValid = invalidStoreConfigMembers == [ ];
 
-      # Validation 4: CLUSTER_TYPE_CONTROL_PLANE_GROUP must have system_account.enable = false
+      # Validation 6: CLUSTER_TYPE_CONTROL_PLANE_GROUP must have system_account.enable = false
       groupSystemAccountValid = !isGroup || !(cp.system_account.enable or false);
 
-      # Validation 5: CLUSTER_TYPE_CONTROL_PLANE_GROUP should not have custom_plugins
+      # Validation 7: CLUSTER_TYPE_CONTROL_PLANE_GROUP should not have custom_plugins
       groupPluginsValid = !isGroup || cp.custom_plugins == [ ];
 
-      # Validation 6: Control planes using AWS backend must have aws.tags defined
+      # Validation 8: Control planes using AWS backend must have aws.tags defined
       usesAws = elem "aws" cp.storage_backend;
       awsTagsValid = !usesAws || (cp ? aws && cp.aws ? tags && cp.aws.tags != { });
 
-      # Validation 7: K8s Ingress Controller must use pinned_client_certs
+      # Validation 9: K8s Ingress Controller must use pinned_client_certs
       k8sAuthValid = cp.cluster_type != clusterTypes.k8sIngress || cp.auth_type == authTypes.pinned;
 
-      # Validation 8: AWS storage backend requires aws.enable = true
+      # Validation 10: AWS storage backend requires aws.enable = true
       usesAwsStorage = elem "aws" cp.storage_backend;
       awsEnabled = cp.aws.enable or false;
       awsStorageValid = !usesAwsStorage || awsEnabled;
 
-      # Validation 9: Region must be in allowed list
+      # Validation 11: Region must be in allowed list
       regionValid = elem cp.region allowedRegions;
 
-      # Validation 10: PKI control planes with create_certificate = true must have a supported pki_backend
+      # Validation 12: PKI control planes with create_certificate = true must have a supported pki_backend
       usesPkiAuth = cp.auth_type == authTypes.pki;
       createsCert = cp.create_certificate or false;
       pkiBackendValid = !usesPkiAuth || !createsCert || (elem cp.pki_backend supportedPkiBackend);
     in
-    if !membersTypeValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' has members ${toString cp.members} but cluster_type is not CLUSTER_TYPE_CONTROL_PLANE_GROUP"
-    else if !membersDefined then
-      throw "Control plane group '${cp.region}/${cp.originalName}' references undefined members: ${toString undefinedMembers}"
-    else if !membersCertValid then
-      throw "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidCertMembers} has create_certificate = true"
-    else if !membersStoreConfigValid then
-      throw "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidStoreConfigMembers} has store_cluster_config = true"
-    else if !groupSystemAccountValid then
-      throw "Control plane group '${cp.region}/${cp.originalName}' cannot have system_account.enable = true"
-    else if !groupPluginsValid then
-      throw "Control plane group '${cp.region}/${cp.originalName}' cannot have custom_plugins defined."
-    else if !awsTagsValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' uses AWS backend but aws.tags is not defined or empty"
-    else if !k8sAuthValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' with cluster_type 'CLUSTER_TYPE_K8S_INGRESS_CONTROLLER' must have auth_type 'pinned_client_certs' but got '${cp.auth_type}'"
-    else if !awsStorageValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
-    else if !regionValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' has invalid region '${cp.region}'. Allowed regions are: ${concatStringsSep ", " allowedRegions}"
-    else if !pkiBackendValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' has unsupported pki_backend '${cp.pki_backend}'. Supported backends: ${concatStringsSep ", " supportedPkiBackend}"
-    else
-      cp;
+    assertValidOrThrow [
+      {
+        valid = membersTypeValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' has members ${toString cp.members} but cluster_type is not CLUSTER_TYPE_CONTROL_PLANE_GROUP";
+      }
+      {
+        valid = membersDefined;
+        message = "Control plane group '${cp.region}/${cp.originalName}' references undefined members: ${toString undefinedMembers}";
+      }
+      {
+        valid = membersRegionValid;
+        message = "Control plane group '${cp.region}/${cp.originalName}' references members in a different region: ${toString crossRegionMembers}. Group members must reside in the same region as the group.";
+      }
+      {
+        valid = membersCertValid;
+        message = "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidCertMembers} has create_certificate = true";
+      }
+      {
+        valid = membersStoreConfigValid;
+        message = "Control plane group '${cp.region}/${cp.originalName}' member ${toString invalidStoreConfigMembers} has store_cluster_config = true";
+      }
+      {
+        valid = groupSystemAccountValid;
+        message = "Control plane group '${cp.region}/${cp.originalName}' cannot have system_account.enable = true";
+      }
+      {
+        valid = groupPluginsValid;
+        message = "Control plane group '${cp.region}/${cp.originalName}' cannot have custom_plugins defined.";
+      }
+      {
+        valid = awsTagsValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' uses AWS backend but aws.tags is not defined or empty";
+      }
+      {
+        valid = k8sAuthValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' with cluster_type 'CLUSTER_TYPE_K8S_INGRESS_CONTROLLER' must have auth_type 'pinned_client_certs' but got '${cp.auth_type}'";
+      }
+      {
+        valid = awsStorageValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage.";
+      }
+      {
+        valid = regionValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' has invalid region '${cp.region}'. Allowed regions are: ${concatStringsSep ", " allowedRegions}";
+      }
+      {
+        valid = pkiBackendValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' has unsupported pki_backend '${cp.pki_backend}'. Supported backends: ${concatStringsSep ", " supportedPkiBackend}";
+      }
+    ] cp;
 
   # Cross-cutting validation - requires global defaults configuration
   validateControlPlaneWithDefaults =
@@ -382,7 +462,7 @@ rec {
       defaults, # Explicitly pass just the defaults we need
     }:
     let
-      # Validation 11: Control planes that need storage and use HCV backend must have storage.hcv.address configured
+      # Validation 13: Control planes that need storage and use HCV backend must have storage.hcv.address configured
       needsStorage =
         (cp.create_certificate or false)
         || (cp.store_cluster_config or false)
@@ -390,18 +470,22 @@ rec {
       usesHcvStorage = needsStorage && elem "hcv" cp.storage_backend;
       hcvStorageAddressValid = !usesHcvStorage || (defaults.storage.hcv.address or "") != "";
 
-      # Validation 12: PKI control planes with create_certificate = true and pki_backend = "hcv" must have pki.hcv.address configured
+      # Validation 14: PKI control planes with create_certificate = true and pki_backend = "hcv" must have pki.hcv.address configured
       usesPkiAuth = cp.auth_type == authTypes.pki;
       createsCert = cp.create_certificate or false;
       usesHcvPki = usesPkiAuth && createsCert && cp.pki_backend == "hcv";
       hcvPkiAddressValid = !usesHcvPki || (defaults.pki.hcv.address or "") != "";
     in
-    if !hcvStorageAddressValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' uses HCV storage backend but defaults.storage.hcv.address is not configured. Please set kontfix.defaults.storage.hcv.address"
-    else if !hcvPkiAddressValid then
-      throw "Control plane '${cp.region}/${cp.originalName}' uses HCV PKI backend but defaults.pki.hcv.address is not configured. Please set kontfix.defaults.pki.hcv.address"
-    else
-      cp;
+    assertValidOrThrow [
+      {
+        valid = hcvStorageAddressValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' uses HCV storage backend but defaults.storage.hcv.address is not configured. Please set kontfix.defaults.storage.hcv.address";
+      }
+      {
+        valid = hcvPkiAddressValid;
+        message = "Control plane '${cp.region}/${cp.originalName}' uses HCV PKI backend but defaults.pki.hcv.address is not configured. Please set kontfix.defaults.pki.hcv.address";
+      }
+    ] cp;
 
   # Combined validation function
   validateControlPlane =
@@ -443,12 +527,16 @@ rec {
       computedAwsRegion = nullIfEmpty (groupConfig.aws.region or "");
       computedAwsProfile = nullIfEmpty (groupConfig.aws.profile or "");
     in
-    if !awsTagsValid then
-      throw "Group '${group.regionName}/${group.originalName}' uses AWS backend but aws.tags is not defined or empty"
-    else if !awsStorageValid then
-      throw "Group '${group.regionName}/${group.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage."
-    else
-      group // { inherit computedAwsRegion computedAwsProfile; };
+    assertValidOrThrow [
+      {
+        valid = awsTagsValid;
+        message = "Group '${group.regionName}/${group.originalName}' uses AWS backend but aws.tags is not defined or empty";
+      }
+      {
+        valid = awsStorageValid;
+        message = "Group '${group.regionName}/${group.originalName}' uses AWS storage backend but aws.enable = false. Set aws.enable = true to use AWS storage.";
+      }
+    ] (group // { inherit computedAwsRegion computedAwsProfile; });
 
   # ============================================================================
   # Processing Functions
@@ -516,20 +604,16 @@ rec {
       ) groupProcessed.validatedGroups;
       # Filter validated groups directly to preserve computed fields
       awsStorageGroups = filter (
-        group: 
-          elem "aws" group.groupConfig.storage_backend 
-          && group.groupConfig.generate_token
-          && (group.groupConfig.aws.enable or false)
+        group:
+        elem "aws" group.groupConfig.storage_backend
+        && group.groupConfig.generate_token
+        && (group.groupConfig.aws.enable or false)
       ) groupProcessed.validatedGroups;
       hcvStorageGroups = filter (
-        group: 
-          elem "hcv" group.groupConfig.storage_backend 
-          && group.groupConfig.generate_token
+        group: elem "hcv" group.groupConfig.storage_backend && group.groupConfig.generate_token
       ) groupProcessed.validatedGroups;
       localStorageGroups = filter (
-        group: 
-          elem "local" group.groupConfig.storage_backend 
-          && group.groupConfig.generate_token
+        group: elem "local" group.groupConfig.storage_backend && group.groupConfig.generate_token
       ) groupProcessed.validatedGroups;
       flattenedGroups = groupProcessed.flattenedGroups;
       validatedGroups = groupProcessed.validatedGroups;
@@ -544,10 +628,9 @@ rec {
     let
       flattenedGroups = flattenGroups groups;
       validatedGroups = map (group: validateGroup { inherit group; }) flattenedGroups;
-      storageRequiredGroups = filter (group: group.groupConfig.generate_token) flattenedGroups;
     in
     {
-      inherit flattenedGroups validatedGroups storageRequiredGroups;
+      inherit flattenedGroups validatedGroups;
     };
 
   flattenGroups =

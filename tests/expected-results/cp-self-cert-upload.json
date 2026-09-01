@@ -46,11 +46,11 @@
     {
       "resource_type": "tls_self_signed_cert",
       "resource_name": "au-test",
-        "subject": [
-          {
-            "common_name": "konnect-au-test"
-          }
-        ],
+      "subject": [
+        {
+          "common_name": "konnect-au-test"
+        }
+      ],
       "depends_on": [
         "tls_private_key.au-test"
       ],
@@ -61,5 +61,12 @@
     {
       "variable_name": "cp_admin_token"
     }
+  ],
+  "required_providers": [
+    {"name": "konnect", "source": "Kong/konnect", "version": "3.3.0"},
+    {"name": "local", "source": "hashicorp/local", "version": "2.5.3"},
+    {"name": "null", "source": "hashicorp/null", "version": "3.2.4"},
+    {"name": "time", "source": "hashicorp/time", "version": "0.13.1"},
+    {"name": "tls", "source": "hashicorp/tls", "version": "4.1.0"}
   ]
 }

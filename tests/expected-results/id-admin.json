@@ -20,5 +20,8 @@
     {
       "variable_name": "id_admin_token"
     }
+  ],
+  "required_providers": [
+    {"name": "konnect", "source": "Kong/konnect", "version": "3.3.0"}
   ]
 }

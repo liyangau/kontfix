@@ -32,6 +32,7 @@
       "resource_type": "konnect_system_account",
       "resource_name": "au-dev_team",
       "name": "au-dev_team",
+      "konnect_managed": false,
       "provider": "konnect.id_admin"
     },
     {
@@ -70,5 +71,12 @@
       "variable_name": "id_admin_token",
       "type": "string"
     }
+  ],
+  "required_providers": [
+    {"name": "konnect", "source": "Kong/konnect", "version": "3.3.0"},
+    {"name": "local", "source": "hashicorp/local", "version": "2.5.3"},
+    {"name": "null", "source": "hashicorp/null", "version": "3.2.4"},
+    {"name": "time", "source": "hashicorp/time", "version": "0.13.1"},
+    {"name": "tls", "source": "hashicorp/tls", "version": "4.1.0"}
   ]
 }

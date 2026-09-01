@@ -25,5 +25,13 @@
       "data_json": "${jsonencode({\n          cluster_url = konnect_gateway_control_plane.us-test-config-hcv.config.control_plane_endpoint\n          telemetry_url = konnect_gateway_control_plane.us-test-config-hcv.config.telemetry_endpoint\n          cp_id = konnect_gateway_control_plane.us-test-config-hcv.id\n          cluster_prefix = regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-test-config-hcv.config.control_plane_endpoint)[0]\n          cluster_control_plane = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-test-config-hcv.config.control_plane_endpoint)[0]}.us.cp.konghq.com:443\"\n          cluster_server_name = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-test-config-hcv.config.control_plane_endpoint)[0]}.us.cp.konghq.com\"\n          cluster_telemetry_endpoint = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-test-config-hcv.config.control_plane_endpoint)[0]}.us.tp.konghq.com:443\"\n          cluster_telemetry_server_name = \"${regex(\"^https://([^.]+)\\\\.\", konnect_gateway_control_plane.us-test-config-hcv.config.control_plane_endpoint)[0]}.us.tp.konghq.com\"\n          })}",
       "mount": "konnect"
     }
+  ],
+  "required_providers": [
+    {"name": "aws", "source": "hashicorp/aws", "version": "6.17.0"},
+    {"name": "konnect", "source": "Kong/konnect", "version": "3.3.0"},
+    {"name": "local", "source": "hashicorp/local", "version": "2.5.3"},
+    {"name": "null", "source": "hashicorp/null", "version": "3.2.4"},
+    {"name": "time", "source": "hashicorp/time", "version": "0.13.1"},
+    {"name": "vault", "source": "hashicorp/vault", "version": "5.3.0"}
   ]
 }

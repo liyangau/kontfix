@@ -15,7 +15,7 @@
             };
           };
         };
-        
+
         # Control plane without custom region (uses var.aws_region)
         dev = {
           create_certificate = true;
@@ -28,7 +28,7 @@
           };
         };
       };
-      
+
       eu = {
         # Control plane with different custom AWS region
         staging = {

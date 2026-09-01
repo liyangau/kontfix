@@ -38,6 +38,9 @@ with lib;
             description = "Optional base directory prefix for local group storage files";
           };
         };
+        # Vault storage configuration. Intentionally separate from pki.hcv
+        # below to support least-privilege deployments where secret storage and
+        # certificate generation use different Vault instances with isolated policies.
         hcv = {
           cp_prefix = mkOption {
             type = types.str;
@@ -52,7 +55,7 @@ with lib;
           address = mkOption {
             type = types.str;
             default = "";
-            description = "HashiCorp Vault address (required if using HCV storage backend)";
+            description = "HashiCorp Vault address for secret storage (required when any control plane uses HCV storage backend)";
           };
           auth_method = mkOption {
             type = types.enum [
@@ -72,12 +75,15 @@ with lib;
           };
         };
       };
+      # Vault PKI configuration. Intentionally separate from storage.hcv above
+      # to support least-privilege deployments where cert generation (PKI) and
+      # secret storage use different Vault instances with isolated policies.
       pki = {
         hcv = {
           address = mkOption {
             type = types.str;
             default = "";
-            description = "HashiCorp Vault address (required if using HCV storage backend)";
+            description = "HashiCorp Vault address for PKI certificate generation (required when any control plane uses pki_client_certs auth with create_certificate = true)";
           };
           auth_method = mkOption {
             type = types.enum [
@@ -115,7 +121,15 @@ with lib;
             ]
           );
           default = [ "local" ];
-          description = "Default storage backend options for control planes";
+          description = ''
+            Default storage backend(s) for control planes. When multiple backends
+            are listed (e.g. `[ "hcv" "aws" ]`), the token, certificate, and
+            cluster config are written to _all_ listed backends (redundant storage,
+            not primary/replica). Each backend has its own provider requirements:
+            `"aws"` requires `aws.enable = true` on the control plane,
+            `"hcv"` requires `defaults.storage.hcv.address` to be set,
+            `"local"` requires no external provider.
+          '';
         };
         labels = mkOption {
           type = types.attrsOf types.str;

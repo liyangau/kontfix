@@ -34,5 +34,8 @@
       "variable_name": "cp_admin_token",
       "type": "string"
     }
+  ],
+  "required_providers": [
+    {"name": "konnect", "source": "Kong/konnect", "version": "3.3.0"}
   ]
 }
